@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1512">
+<style>:root{color-scheme:light dark}html,body{margin:0}</style>
+</head>
+<body>
+<title>Journey Walker — Banc d'essai · Capture terrain</title>
+<style>
+  :root {
+    --bg:#0e1512; --panel:#16211c; --panel-2:#1c2a24;
+    --ink:#e9f1ec; --ink-soft:#9fb0a8; --ink-faint:#6d7f77;
+    --line:#26362f; --line-strong:#33473e;
+    --accent:#e0a458; --accent-ink:#f0c088;
+    --good:#4fbf87; --good-bg:#12271e;
+    --fair:#e0b354; --fair-bg:#2a2413;
+    --poor:#e0755a; --poor-bg:#2e1a15;
+    --idle:#6d7f77; --idle-bg:#1a2420;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Consolas",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --radius:16px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:#eef2f0; --panel:#ffffff; --panel-2:#f3f7f4;
+      --ink:#152019; --ink-soft:#4c5d55; --ink-faint:#78897f;
+      --line:#dde6e1; --line-strong:#c6d2cb;
+      --accent:#b06a24; --accent-ink:#8a5015;
+      --good:#2f8a5e; --good-bg:#e4f2ea;
+      --fair:#9a7817; --fair-bg:#f4ecd4;
+      --poor:#b34a2f; --poor-bg:#f4ddd5;
+      --idle:#78897f; --idle-bg:#e8eeea;
+    }
+  }
+  :root[data-theme="light"] {
+      --bg:#eef2f0; --panel:#ffffff; --panel-2:#f3f7f4;
+      --ink:#152019; --ink-soft:#4c5d55; --ink-faint:#78897f;
+      --line:#dde6e1; --line-strong:#c6d2cb;
+      --accent:#b06a24; --accent-ink:#8a5015;
+      --good:#2f8a5e; --good-bg:#e4f2ea;
+      --fair:#9a7817; --fair-bg:#f4ecd4;
+      --poor:#b34a2f; --poor-bg:#f4ddd5;
+      --idle:#78897f; --idle-bg:#e8eeea;
+  }
+  :root[data-theme="dark"] {
+      --bg:#0e1512; --panel:#16211c; --panel-2:#1c2a24;
+      --ink:#e9f1ec; --ink-soft:#9fb0a8; --ink-faint:#6d7f77;
+      --line:#26362f; --line-strong:#33473e;
+      --accent:#e0a458; --accent-ink:#f0c088;
+      --good:#4fbf87; --good-bg:#12271e;
+      --fair:#e0b354; --fair-bg:#2a2413;
+      --poor:#e0755a; --poor-bg:#2e1a15;
+      --idle:#6d7f77; --idle-bg:#1a2420;
+  }
+
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; }
+  .app { background:var(--bg); color:var(--ink); font-family:var(--sans); min-height:100vh;
+    padding:14px; max-width:640px; margin:0 auto; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3 { margin:0; }
+  .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+
+  header.top { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
+  .brand { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); font-family:var(--mono); }
+  .route { font-size:13px; color:var(--accent-ink); font-weight:600; margin-top:2px; }
+
+  /* GPS STATUS BANNER */
+  .status { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:var(--radius);
+    border:1px solid var(--line); background:var(--idle-bg); margin-bottom:12px; }
+  .status .beacon { width:16px; height:16px; border-radius:50%; background:var(--idle); flex:none; position:relative; }
+  .status.s-acq .beacon, .status.s-good .beacon, .status.s-fair .beacon, .status.s-poor .beacon { }
+  .status .beacon::after { content:""; position:absolute; inset:-6px; border-radius:50%; border:2px solid currentColor; opacity:0; }
+  .status.s-acq { background:var(--fair-bg); border-color:var(--fair); color:var(--fair); }
+  .status.s-acq .beacon { background:var(--fair); color:var(--fair); }
+  .status.s-acq .beacon::after { animation:ping 1.6s ease-out infinite; opacity:.6; }
+  .status.s-good { background:var(--good-bg); border-color:var(--good); color:var(--good); }
+  .status.s-good .beacon { background:var(--good); }
+  .status.s-fair { background:var(--fair-bg); border-color:var(--fair); color:var(--fair); }
+  .status.s-fair .beacon { background:var(--fair); }
+  .status.s-poor { background:var(--poor-bg); border-color:var(--poor); color:var(--poor); }
+  .status.s-poor .beacon { background:var(--poor); }
+  .status.s-err { background:var(--poor-bg); border-color:var(--poor); color:var(--poor); }
+  .status.s-err .beacon { background:var(--poor); }
+  @keyframes ping { 0%{transform:scale(.6);opacity:.6;} 70%{transform:scale(1.8);opacity:0;} 100%{opacity:0;} }
+  @media (prefers-reduced-motion: reduce){ .status.s-acq .beacon::after{ animation:none; } }
+  .status .st-txt { flex:1; min-width:0; }
+  .status .st-title { font-weight:700; font-size:15px; }
+  .status .st-sub { font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+
+  /* READOUT TILES */
+  .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:10px; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 8px; text-align:center; }
+  .tile .k { font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); font-family:var(--mono); }
+  .tile .v { font-size:22px; font-weight:700; margin-top:3px; font-family:var(--mono); font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+  .tile .u { font-size:11px; color:var(--ink-soft); font-weight:500; }
+  .coords { text-align:center; font-family:var(--mono); font-size:12px; color:var(--ink-soft); margin-bottom:14px; }
+
+  /* BUTTONS */
+  .btns { display:grid; gap:10px; margin-bottom:14px; }
+  .btn { border:none; border-radius:var(--radius); padding:20px; font-size:19px; font-weight:700; font-family:var(--sans);
+    color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; touch-action:manipulation;
+    transition:transform .06s ease, filter .15s ease; user-select:none; }
+  .btn:active { transform:scale(.98); }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .btn .ic { font-size:22px; }
+  .btn-start { background:var(--good); font-size:22px; padding:24px; }
+  .btn-lost { background:var(--accent); color:#241705; font-size:24px; padding:26px; }
+  .btn-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .btn-note { background:var(--panel-2); color:var(--ink); border:1px solid var(--line-strong); }
+  .btn-end { background:var(--poor); }
+  .btn-pause { background:var(--panel-2); color:var(--ink-soft); border:1px solid var(--line-strong); font-size:14px; padding:12px; font-weight:600; }
+  .btn-ghost { background:transparent; color:var(--ink-soft); border:1px solid var(--line-strong); font-size:15px; padding:14px; }
+  .btn-amber { background:var(--accent); color:#241705; }
+
+  /* EVENT FEED */
+  .feed-h { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint);
+    font-family:var(--mono); margin:4px 2px 8px; display:flex; justify-content:space-between; }
+  .feed { display:flex; flex-direction:column; gap:6px; max-height:34vh; overflow-y:auto; }
+  .ev { display:flex; align-items:baseline; gap:10px; padding:9px 12px; border-radius:10px; background:var(--panel); border:1px solid var(--line); font-size:13px; }
+  .ev .t { font-family:var(--mono); font-size:11px; color:var(--ink-faint); flex:none; }
+  .ev .lbl { font-weight:600; }
+  .ev.k-lost { border-color:var(--accent); background:var(--fair-bg); }
+  .ev.k-lost .lbl { color:var(--accent-ink); }
+  .ev.k-note { border-color:var(--line-strong); }
+  .ev.k-se .lbl { color:var(--good); }
+  .ev .meta { color:var(--ink-soft); font-size:12px; }
+  .empty { color:var(--ink-faint); font-size:13px; text-align:center; padding:16px; }
+
+  /* MODAL */
+  .scrim { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; justify-content:center; z-index:50; padding:12px; }
+  .scrim.on { display:flex; }
+  .sheet { background:var(--panel); border:1px solid var(--line-strong); border-radius:20px; width:100%; max-width:560px; padding:18px; }
+  .sheet h3 { font-size:17px; margin-bottom:4px; }
+  .sheet p.sub { font-size:13px; color:var(--ink-soft); margin:0 0 14px; }
+  .opts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+  .opt { padding:14px 10px; border-radius:12px; border:1px solid var(--line-strong); background:var(--panel-2);
+    text-align:center; font-size:14px; font-weight:600; cursor:pointer; touch-action:manipulation; }
+  .opt.sel { border-color:var(--accent); background:var(--fair-bg); color:var(--accent-ink); }
+  .sheet textarea { width:100%; background:var(--panel-2); border:1px solid var(--line-strong); border-radius:12px;
+    color:var(--ink); padding:12px; font-family:var(--sans); font-size:15px; resize:vertical; min-height:56px; margin-bottom:12px; }
+  .sheet-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* SUMMARY */
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
+  .sum-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:12px; }
+  .sum { background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:12px; }
+  .sum .k { font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint); font-family:var(--mono); }
+  .sum .v { font-size:20px; font-weight:700; margin-top:4px; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .sum .v small { font-size:12px; color:var(--ink-soft); font-weight:500; }
+  #plot { width:100%; height:auto; display:block; border-radius:12px; border:1px solid var(--line); background:var(--panel-2); }
+  .plot-legend { display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--ink-soft); margin-top:8px; }
+  .plot-legend span { display:inline-flex; align-items:center; gap:5px; }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  textarea#json { width:100%; min-height:120px; background:var(--panel-2); border:1px solid var(--line-strong);
+    border-radius:12px; color:var(--ink-soft); padding:12px; font-family:var(--mono); font-size:11px; margin-top:6px; }
+
+  .hint { font-size:12px; color:var(--ink-faint); text-align:center; margin:10px 2px; line-height:1.5; }
+  .hidden { display:none !important; }
+  .wl { font-size:11px; color:var(--ink-faint); font-family:var(--mono); }
+  .banner { border-radius:12px; padding:12px 14px; font-size:13px; margin-bottom:12px; line-height:1.5; }
+  .banner.warn { background:var(--poor-bg); border:1px solid var(--poor); color:var(--ink); }
+  .banner.info { background:var(--idle-bg); border:1px solid var(--line-strong); color:var(--ink-soft); }
+  .banner b { color:var(--ink); }
+</style>
+
+<div class="app">
+
+  <header class="top">
+    <div>
+      <div class="brand">Journey Walker · Banc d'essai</div>
+      <div class="route" id="routeLabel">OTT-BYWARD-PARL · v0.1</div>
+    </div>
+    <div class="wl" id="wlState">écran&nbsp;: —</div>
+  </header>
+
+  <!-- ====== CAPTURE VIEW ====== -->
+  <div id="viewCapture">
+
+    <div class="status s-idle" id="statusBox">
+      <div class="beacon"></div>
+      <div class="st-txt">
+        <div class="st-title" id="stTitle">Prêt</div>
+        <div class="st-sub" id="stSub">Appuie sur « Commencer » pour lancer la trace GPS.</div>
+      </div>
+    </div>
+
+    <div id="diagBanner"></div>
+
+    <div class="tiles">
+      <div class="tile"><div class="k">Précision</div><div class="v" id="tAcc">—</div><div class="u">m</div></div>
+      <div class="tile"><div class="k">Points</div><div class="v" id="tPts">0</div><div class="u">&nbsp;</div></div>
+      <div class="tile"><div class="k">Durée</div><div class="v" id="tDur">0:00</div><div class="u">&nbsp;</div></div>
+      <div class="tile"><div class="k">Vitesse</div><div class="v" id="tSpd">—</div><div class="u">km/h</div></div>
+    </div>
+    <div class="coords" id="coords">— , —</div>
+
+    <div class="btns">
+      <button class="btn btn-start" id="btnStart"><span class="ic">▶</span> Commencer</button>
+
+      <div id="liveCtrls" class="hidden">
+        <button class="btn btn-lost" id="btnLost" style="width:100%; margin-bottom:10px;"><span class="ic">✋</span> Perdu&nbsp;— je doute</button>
+        <div class="btn-row">
+          <button class="btn btn-note" id="btnNote"><span class="ic">✎</span> Note</button>
+          <button class="btn btn-end" id="btnEnd"><span class="ic">■</span> Terminer</button>
+        </div>
+        <button class="btn btn-pause" id="btnPause" style="width:100%; margin-top:10px;">⏸ Pause</button>
+      </div>
+    </div>
+
+    <div class="feed-h"><span>Journal de marche</span><span id="evCount">0 événement</span></div>
+    <div class="feed" id="feed"><div class="empty">Aucun événement pour l'instant.</div></div>
+
+    <div class="hint">La trace commence à « Commencer » et s'arrête à « Terminer ».<br>Garde l'écran allumé et l'app visible pendant la marche.</div>
+  </div>
+
+  <!-- ====== SUMMARY VIEW ====== -->
+  <div id="viewSummary" class="hidden">
+    <h1 style="font-size:22px; margin-bottom:4px;">Marche terminée</h1>
+    <p style="color:var(--ink-soft); font-size:14px; margin:0 0 14px;" id="sumMeta"></p>
+
+    <div class="card">
+      <div class="sum-grid">
+        <div class="sum"><div class="k">Durée</div><div class="v" id="sDur">—</div></div>
+        <div class="sum"><div class="k">Points GPS</div><div class="v" id="sPts">—</div></div>
+        <div class="sum"><div class="k">Précision moyenne</div><div class="v" id="sAcc">— <small>m</small></div></div>
+        <div class="sum"><div class="k">Précision médiane</div><div class="v" id="sMed">— <small>m</small></div></div>
+        <div class="sum"><div class="k">« Perdu »</div><div class="v" id="sLost">—</div></div>
+        <div class="sum"><div class="k">Observations</div><div class="v" id="sObs">—</div></div>
+      </div>
+      <canvas id="plot" width="600" height="380"></canvas>
+      <div class="plot-legend">
+        <span><i class="dot" style="background:var(--good)"></i> bon (&lt;10 m)</span>
+        <span><i class="dot" style="background:var(--fair)"></i> moyen (10–25 m)</span>
+        <span><i class="dot" style="background:var(--poor)"></i> faible (&gt;25 m)</span>
+        <span><i class="dot" style="background:var(--accent-ink)"></i> « perdu »</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:15px; margin-bottom:8px;">Exporter la trace</h3>
+      <p style="font-size:13px; color:var(--ink-soft); margin:0 0 10px;">Conforme aux schémas de session v0.2. Récupère le JSON par l'un des trois moyens :</p>
+      <div class="btns" style="margin-bottom:8px;">
+        <button class="btn btn-amber" id="btnDownload" style="font-size:16px; padding:16px;"><span class="ic">⬇</span> Télécharger le JSON</button>
+        <div class="btn-row">
+          <button class="btn btn-note" id="btnCopy" style="font-size:15px; padding:14px;">⧉ Copier</button>
+          <button class="btn btn-ghost" id="btnNew" style="font-size:15px; padding:14px;">Nouvelle marche</button>
+        </div>
+      </div>
+      <textarea id="json" readonly onclick="this.select()"></textarea>
+    </div>
+  </div>
+
+  <!-- ====== NOTE MODAL ====== -->
+  <div class="scrim" id="noteModal">
+    <div class="sheet">
+      <h3>Observation terrain</h3>
+      <p class="sub">Qu'est-ce que tu vois&nbsp;? (à l'arrêt, jamais en traversée)</p>
+      <div class="opts" id="noteOpts">
+        <div class="opt" data-k="stairs">Escalier</div>
+        <div class="opt" data-k="slope">Pente</div>
+        <div class="opt" data-k="crossing">Traversée</div>
+        <div class="opt" data-k="crowding">Foule</div>
+        <div class="opt" data-k="surface">Sol / surface</div>
+        <div class="opt" data-k="signage">Signalisation</div>
+        <div class="opt" data-k="obstacle">Obstacle</div>
+        <div class="opt" data-k="other">Autre</div>
+      </div>
+      <textarea id="noteText" placeholder="Détail (optionnel)…"></textarea>
+      <div class="sheet-actions">
+        <button class="btn btn-note" id="noteCancel" style="font-size:15px; padding:14px;">Annuler</button>
+        <button class="btn btn-amber" id="noteSave" style="font-size:15px; padding:14px;">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== END MODAL ====== -->
+  <div class="scrim" id="endModal">
+    <div class="sheet">
+      <h3>Terminer la marche</h3>
+      <p class="sub">Pourquoi la session se termine&nbsp;?</p>
+      <div class="opts" id="endOpts" style="grid-template-columns:1fr;">
+        <div class="opt" data-k="user_finished">J'ai fini normalement</div>
+        <div class="opt" data-k="route_completed">Parcours complété</div>
+        <div class="opt" data-k="user_abandoned">J'abandonne / demi-tour</div>
+        <div class="opt" data-k="technical_failure">Problème technique</div>
+        <div class="opt" data-k="safety_stop">Arrêt de sécurité</div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn btn-note" id="endCancel" style="font-size:15px; padding:14px;">Continuer la marche</button>
+        <button class="btn btn-end" id="endConfirm" style="font-size:15px; padding:14px;">Terminer</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const LS_KEY = "jw_banc_essai_session_v1";
+  const APP_VERSION = "banc-essai-0.1";
+  const ROUTE_ID = "OTT-BYWARD-PARL";
+  const ROUTE_VERSION = "0.1";
+
+  let S = null;            // current session object
+  let watchId = null;      // geolocation watch handle
+  let wakeLock = null;
+  let paused = false;
+  let lastSampleTs = null;
+  let tickTimer = null;
+  let permState = "prompt";
+  let pendingNoteKind = null;
+  let pendingEndReason = null;
+
+  // ---------- session model ----------
+  function newSession(){
+    return {
+      session_id: "OTT-" + Date.now(),
+      consent_ref: "OWNER_SELF_TEST",   // auto-test du propriétaire — pas de tierce personne
+      mission_id: null,
+      route_id: ROUTE_ID,
+      route_version: ROUTE_VERSION,
+      app_version: APP_VERSION,
+      schema_version: "0.2",
+      device_class: /iPhone|iPad|iPod/.test(navigator.userAgent) ? "ios" : (/Android/.test(navigator.userAgent) ? "android" : "other"),
+      started_at: null,
+      ended_at: null,
+      end_reason: null,
+      start_zone_generic: "ByWard Market, Ottawa",
+      samples: [],
+      events: [],
+      observations: [],
+      user_agent: navigator.userAgent
+    };
+  }
+  function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
+  function clearSave(){ try{ localStorage.removeItem(LS_KEY); }catch(e){} }
+
+  // ---------- helpers ----------
+  function fmtDur(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60); const r=s%60; return m+":"+String(r).padStart(2,"0"); }
+  function accTier(a){ if(a==null) return "idle"; if(a<10) return "good"; if(a<=25) return "fair"; return "poor"; }
+  function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0"); }
+
+  // ---------- status UI ----------
+  function setStatus(cls, title, sub){
+    const box=$("#statusBox");
+    box.className="status s-"+cls;
+    $("#stTitle").textContent=title;
+    if(sub!=null) $("#stSub").textContent=sub;
+  }
+
+  function renderLive(pos){
+    const a = pos ? pos.coords.accuracy : null;
+    $("#tAcc").textContent = a==null ? "—" : Math.round(a);
+    $("#tPts").textContent = S ? S.samples.length : 0;
+    if(pos){
+      const spd = pos.coords.speed;
+      $("#tSpd").textContent = (spd==null||isNaN(spd)||spd<0) ? "—" : (spd*3.6).toFixed(1);
+      $("#coords").textContent = pos.coords.latitude.toFixed(6)+" , "+pos.coords.longitude.toFixed(6);
+    }
+    const tier=accTier(a);
+    if(watchId!=null && !paused){
+      if(tier==="good") setStatus("good","Signal bon","Précision "+Math.round(a)+" m · la trace enregistre.");
+      else if(tier==="fair") setStatus("fair","Signal moyen","Précision "+Math.round(a)+" m · zone de test.");
+      else if(tier==="poor") setStatus("poor","Signal faible","Précision "+Math.round(a)+" m · le moteur va perdre confiance ici.");
+    }
+  }
+
+  function tick(){
+    if(!S||!S.started_at) return;
+    $("#tDur").textContent = fmtDur(Date.now() - S.started_at);
+  }
+
+  // ---------- events feed ----------
+  function pushFeed(kind, label, meta){
+    const feed=$("#feed");
+    const empty=feed.querySelector(".empty"); if(empty) empty.remove();
+    const row=document.createElement("div");
+    row.className="ev k-"+kind;
+    row.innerHTML='<span class="t">'+nowHM()+'</span><span class="lbl">'+label+'</span>'+(meta?'<span class="meta">'+meta+'</span>':'');
+    feed.prepend(row);
+    const n = S ? (S.events.length + S.observations.length) : 0;
+    $("#evCount").textContent = n+" événement"+(n>1?"s":"");
+  }
+
+  // ---------- geolocation ----------
+  function onPos(pos){
+    lastSampleTs = pos.timestamp;
+    if(!S || paused) { renderLive(pos); return; }
+    const c=pos.coords;
+    let qflag="ok";
+    if(c.accuracy>50) qflag="low_accuracy";
+    S.samples.push({
+      sample_id: "s"+S.samples.length,
+      timestamp: new Date(pos.timestamp).toISOString(),
+      latitude: c.latitude, longitude: c.longitude,
+      horizontal_accuracy_m: c.accuracy==null?null:Math.round(c.accuracy*10)/10,
+      altitude_m: c.altitude==null?null:Math.round(c.altitude*10)/10,
+      speed_mps: (c.speed==null||isNaN(c.speed))?null:Math.round(c.speed*100)/100,
+      course_deg: (c.heading==null||isNaN(c.heading))?null:Math.round(c.heading),
+      source_state: document.hidden ? "background":"foreground",
+      permission_state: permState==="granted" ? "precise_when_in_use" : "reduced_when_in_use",
+      quality_flag: qflag
+    });
+    renderLive(pos);
+    save();
+  }
+
+  function onErr(err){
+    const msg=(err && err.message)||"";
+    if(err && err.code===1){
+      // could be user denial OR a permissions-policy block by the iframe
+      const policyBlocked=/policy|disabled|permission|feature/i.test(msg);
+      $("#diagBanner").innerHTML='<div class="banner warn"><b>GPS bloqué.</b> '+
+        (policyBlocked
+          ? "L'accès à la position est <b>désactivé par la politique du cadre</b> (l'iframe de l'artifact). Il faut le plan B : ouvrir l'outil comme fichier autonome ou l'héberger. "
+          : "Autorisation refusée. Va dans Réglages → Confidentialité → Service de localisation → Safari, et active la <b>Position précise</b>. ")+
+        '<span class="mono">['+ (err.code) +'] '+ (msg||"") +'</span></div>';
+      setStatus("err","GPS indisponible","Voir le message ci-dessus.");
+      stopWatch();
+    } else if(err && err.code===2){
+      setStatus("err","Position indisponible","Signal introuvable pour l'instant — patiente à ciel ouvert.");
+    } else if(err && err.code===3){
+      setStatus("acq","Acquisition…","Le fix prend du temps (timeout). On réessaie.");
+    }
+  }
+
+  function startWatch(){
+    if(!("geolocation" in navigator)){
+      $("#diagBanner").innerHTML='<div class="banner warn"><b>Pas de GPS.</b> Ce navigateur n\'expose pas la géolocalisation.</div>';
+      setStatus("err","GPS absent",""); return false;
+    }
+    setStatus("acq","Acquisition du signal…","Autorise la localisation et attends un fix stable.");
+    try {
+      watchId = navigator.geolocation.watchPosition(onPos, onErr, {
+        enableHighAccuracy:true, maximumAge:0, timeout:30000
+      });
+      return true;
+    } catch(e){
+      $("#diagBanner").innerHTML='<div class="banner warn"><b>GPS bloqué.</b> <span class="mono">'+(e.message||e)+'</span></div>';
+      setStatus("err","GPS bloqué",""); return false;
+    }
+  }
+  function stopWatch(){
+    if(watchId!=null){ try{navigator.geolocation.clearWatch(watchId);}catch(e){} watchId=null; }
+  }
+
+  // ---------- wake lock ----------
+  async function requestWake(){
+    try{
+      if("wakeLock" in navigator){
+        wakeLock = await navigator.wakeLock.request("screen");
+        $("#wlState").textContent="écran : maintenu";
+        wakeLock.addEventListener("release", ()=>{ $("#wlState").textContent="écran : relâché"; });
+      } else { $("#wlState").textContent="écran : non géré"; }
+    }catch(e){ $("#wlState").textContent="écran : refusé"; }
+  }
+  function releaseWake(){ try{ if(wakeLock){ wakeLock.release(); wakeLock=null; } }catch(e){} }
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && watchId!=null && !paused) requestWake(); });
+
+  // ---------- permission query ----------
+  async function queryPerm(){
+    try{
+      if(navigator.permissions && navigator.permissions.query){
+        const r=await navigator.permissions.query({name:"geolocation"});
+        permState=r.state;
+        r.onchange=()=>{ permState=r.state; };
+      }
+    }catch(e){}
+  }
+
+  // ---------- start / stop session ----------
+  function beginSession(){
+    S = newSession();
+    S.started_at = Date.now();
+    save();
+    $("#btnStart").classList.add("hidden");
+    $("#liveCtrls").classList.remove("hidden");
+    pushFeed("se","Commencer","trace démarrée");
+    startWatch();
+    requestWake();
+    tickTimer = setInterval(tick, 500);
+  }
+
+  function endSession(){
+    if(!S) return;
+    S.ended_at = Date.now();
+    S.end_reason = pendingEndReason || "user_finished";
+    stopWatch(); releaseWake();
+    if(tickTimer){ clearInterval(tickTimer); tickTimer=null; }
+    pushFeed("se","Terminer",S.end_reason);
+    save();
+    showSummary();
+  }
+
+  // ---------- summary ----------
+  function median(arr){ if(!arr.length) return null; const a=arr.slice().sort((x,y)=>x-y); const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; }
+
+  function showSummary(){
+    $("#viewCapture").classList.add("hidden");
+    $("#viewSummary").classList.remove("hidden");
+    const accs=S.samples.map(s=>s.horizontal_accuracy_m).filter(x=>x!=null);
+    const mean = accs.length? (accs.reduce((a,b)=>a+b,0)/accs.length):null;
+    const med = median(accs);
+    const dur = (S.ended_at-S.started_at);
+    $("#sumMeta").textContent = new Date(S.started_at).toLocaleString() + " · " + S.route_id + " v" + S.route_version;
+    $("#sDur").textContent = fmtDur(dur);
+    $("#sPts").textContent = S.samples.length;
+    $("#sAcc").innerHTML = (mean==null?"—":mean.toFixed(1))+' <small>m</small>';
+    $("#sMed").innerHTML = (med==null?"—":med.toFixed(1))+' <small>m</small>';
+    $("#sLost").textContent = S.events.filter(e=>e.kind==="lost_button").length;
+    $("#sObs").textContent = S.observations.length;
+    $("#json").value = JSON.stringify(buildExport(), null, 2);
+    drawPlot();
+  }
+
+  function buildExport(){
+    // WalkSession conforme aux schémas v0.2 (sous-ensemble capté sur le terrain)
+    return {
+      _meta:{ tool:"JW banc d'essai Ottawa", generated_at:new Date().toISOString(), note:"Auto-test du propriétaire — données de José uniquement, aucune tierce personne." },
+      WalkSession:{
+        session_id:S.session_id, consent_ref:S.consent_ref, mission_id:S.mission_id,
+        route_id:S.route_id, route_version:S.route_version, app_version:S.app_version,
+        schema_version:S.schema_version, device_class:S.device_class,
+        started_at:new Date(S.started_at).toISOString(),
+        ended_at:S.ended_at?new Date(S.ended_at).toISOString():null,
+        end_reason:S.end_reason, start_zone_generic:S.start_zone_generic,
+        user_agent:S.user_agent,
+        sample_count:S.samples.length
+      },
+      LocationSample:S.samples,
+      InteractionEvent:S.events,
+      FieldObservation:S.observations
+    };
+  }
+
+  function drawPlot(){
+    const cv=$("#plot"), ctx=cv.getContext("2d");
+    const W=cv.width, H=cv.height, pad=26;
+    ctx.clearRect(0,0,W,H);
+    const pts=S.samples.filter(s=>s.latitude!=null&&s.longitude!=null);
+    if(pts.length<2){ ctx.fillStyle=getCSS("--ink-faint"); ctx.font="14px sans-serif"; ctx.textAlign="center"; ctx.fillText("Pas assez de points pour tracer.",W/2,H/2); return; }
+    let minLa=Infinity,maxLa=-Infinity,minLo=Infinity,maxLo=-Infinity;
+    pts.forEach(p=>{ minLa=Math.min(minLa,p.latitude);maxLa=Math.max(maxLa,p.latitude);minLo=Math.min(minLo,p.longitude);maxLo=Math.max(maxLo,p.longitude); });
+    const spanLa=(maxLa-minLa)||1e-6, spanLo=(maxLo-minLo)||1e-6;
+    const cosLat=Math.cos((minLa+maxLa)/2*Math.PI/180);
+    const geoW=spanLo*cosLat, geoH=spanLa;
+    const scale=Math.min((W-2*pad)/geoW,(H-2*pad)/geoH);
+    const ox=(W-geoW*scale)/2, oy=(H-geoH*scale)/2;
+    const X=p=>ox+(p.longitude-minLo)*cosLat*scale;
+    const Y=p=>H-(oy+(p.latitude-minLa)*scale);
+    // line
+    ctx.strokeStyle=getCSS("--line-strong"); ctx.lineWidth=2; ctx.beginPath();
+    pts.forEach((p,i)=>{ const x=X(p),y=Y(p); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.stroke();
+    // points colored by accuracy
+    pts.forEach(p=>{ const t=accTier(p.horizontal_accuracy_m); ctx.fillStyle=getCSS(t==="good"?"--good":t==="fair"?"--fair":"--poor");
+      ctx.beginPath(); ctx.arc(X(p),Y(p),3,0,7); ctx.fill(); });
+    // lost markers (match nearest sample by timestamp)
+    S.events.filter(e=>e.kind==="lost_button").forEach(e=>{
+      const et=Date.parse(e.timestamp); let best=null,bd=Infinity;
+      pts.forEach(p=>{ const d=Math.abs(Date.parse(p.timestamp)-et); if(d<bd){bd=d;best=p;} });
+      if(best){ ctx.fillStyle=getCSS("--accent-ink"); ctx.beginPath(); ctx.arc(X(best),Y(best),6,0,7); ctx.fill();
+        ctx.strokeStyle=getCSS("--bg"); ctx.lineWidth=2; ctx.stroke(); }
+    });
+    // start/end
+    ctx.fillStyle=getCSS("--good"); ctx.beginPath(); ctx.arc(X(pts[0]),Y(pts[0]),6,0,7); ctx.fill();
+    ctx.fillStyle=getCSS("--poor"); ctx.beginPath(); ctx.arc(X(pts[pts.length-1]),Y(pts[pts.length-1]),6,0,7); ctx.fill();
+  }
+  function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim()||"#888"; }
+
+  // ---------- export actions ----------
+  function download(){
+    try{
+      const blob=new Blob([JSON.stringify(buildExport(),null,2)],{type:"application/json"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url; a.download="JW_BANC_ESSAI_OTT_"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),2000);
+    }catch(e){ alert("Téléchargement bloqué par le cadre. Utilise « Copier » ou sélectionne le texte ci-dessous."); }
+  }
+  async function copyJson(){
+    const txt=$("#json").value;
+    try{ await navigator.clipboard.writeText(txt); flash($("#btnCopy"),"Copié ✓"); }
+    catch(e){ $("#json").select(); try{document.execCommand("copy");flash($("#btnCopy"),"Copié ✓");}catch(_){ flash($("#btnCopy"),"Sélectionne le texte"); } }
+  }
+  function flash(btn,txt){ const o=btn.textContent; btn.textContent=txt; setTimeout(()=>btn.textContent=o,1400); }
+
+  // ---------- modals ----------
+  function openModal(id){ $(id).classList.add("on"); }
+  function closeModal(id){ $(id).classList.remove("on"); }
+
+  // note modal
+  $("#noteOpts").addEventListener("click",e=>{ const o=e.target.closest(".opt"); if(!o)return;
+    $("#noteOpts").querySelectorAll(".opt").forEach(x=>x.classList.remove("sel")); o.classList.add("sel"); pendingNoteKind=o.dataset.k; });
+  $("#btnNote").addEventListener("click",()=>{ pendingNoteKind=null; $("#noteText").value=""; $("#noteOpts").querySelectorAll(".opt").forEach(x=>x.classList.remove("sel")); openModal("#noteModal"); });
+  $("#noteCancel").addEventListener("click",()=>closeModal("#noteModal"));
+  $("#noteSave").addEventListener("click",()=>{
+    if(!pendingNoteKind){ flash($("#noteSave"),"Choisis un type"); return; }
+    const last=S.samples[S.samples.length-1];
+    S.observations.push({
+      observation_id:"o"+S.observations.length,
+      timestamp:new Date().toISOString(),
+      kind:pendingNoteKind,
+      description:$("#noteText").value.trim()||null,
+      location: last? {lat:last.latitude,lon:last.longitude}:null,
+      is_mandatory:false,
+      captured_while_moving:false
+    });
+    save();
+    const labels={stairs:"Escalier",slope:"Pente",crossing:"Traversée",crowding:"Foule",surface:"Surface",signage:"Signalisation",obstacle:"Obstacle",other:"Autre"};
+    pushFeed("note",labels[pendingNoteKind]||pendingNoteKind, $("#noteText").value.trim());
+    closeModal("#noteModal");
+  });
+
+  // end modal
+  $("#endOpts").addEventListener("click",e=>{ const o=e.target.closest(".opt"); if(!o)return;
+    $("#endOpts").querySelectorAll(".opt").forEach(x=>x.classList.remove("sel")); o.classList.add("sel"); pendingEndReason=o.dataset.k; });
+  $("#btnEnd").addEventListener("click",()=>{ pendingEndReason=null; $("#endOpts").querySelectorAll(".opt").forEach(x=>x.classList.remove("sel")); openModal("#endModal"); });
+  $("#endCancel").addEventListener("click",()=>closeModal("#endModal"));
+  $("#endConfirm").addEventListener("click",()=>{ closeModal("#endModal"); endSession(); });
+
+  // lost + pause
+  $("#btnLost").addEventListener("click",()=>{
+    const last=S.samples[S.samples.length-1];
+    S.events.push({ event_id:"e"+S.events.length, timestamp:new Date().toISOString(), kind:"lost_button",
+      screen:"capture", accuracy_at_event_m:last?last.horizontal_accuracy_m:null });
+    save();
+    pushFeed("lost","Perdu", last&&last.horizontal_accuracy_m!=null?("précision "+Math.round(last.horizontal_accuracy_m)+" m"):"");
+    const b=$("#btnLost"); b.style.filter="brightness(1.3)"; setTimeout(()=>b.style.filter="",180);
+  });
+  $("#btnPause").addEventListener("click",()=>{
+    paused=!paused;
+    if(paused){ S.events.push({event_id:"e"+S.events.length,timestamp:new Date().toISOString(),kind:"pause",screen:"capture"});
+      $("#btnPause").textContent="▶ Reprendre"; setStatus("idle","En pause","La trace n'enregistre pas."); releaseWake(); pushFeed("se","Pause",""); }
+    else { S.events.push({event_id:"e"+S.events.length,timestamp:new Date().toISOString(),kind:"resume",screen:"capture"});
+      $("#btnPause").textContent="⏸ Pause"; requestWake(); pushFeed("se","Reprise",""); }
+    save();
+  });
+
+  // start / restart
+  $("#btnStart").addEventListener("click",beginSession);
+  $("#btnDownload").addEventListener("click",download);
+  $("#btnCopy").addEventListener("click",copyJson);
+  $("#btnNew").addEventListener("click",()=>{ clearSave(); location.reload(); });
+
+  // ---------- restore unfinished session ----------
+  function tryRestore(){
+    let raw=null; try{ raw=localStorage.getItem(LS_KEY); }catch(e){}
+    if(!raw) return;
+    let prev=null; try{ prev=JSON.parse(raw); }catch(e){ return; }
+    if(prev && prev.started_at && !prev.ended_at){
+      $("#diagBanner").innerHTML='<div class="banner info">Une marche <b>non terminée</b> ('+prev.samples.length+' points) est en mémoire. '+
+        '<b><a href="#" id="rsResume" style="color:var(--accent-ink)">Reprendre</a></b> · '+
+        '<a href="#" id="rsFinish" style="color:var(--ink-soft)">La clôturer</a> · '+
+        '<a href="#" id="rsDrop" style="color:var(--ink-soft)">Jeter</a></div>';
+      $("#rsResume").onclick=e=>{ e.preventDefault(); S=prev; $("#diagBanner").innerHTML=""; $("#btnStart").classList.add("hidden"); $("#liveCtrls").classList.remove("hidden");
+        S.samples.forEach(()=>{}); $("#tPts").textContent=S.samples.length; startWatch(); requestWake(); tickTimer=setInterval(tick,500); pushFeed("se","Reprise session",prev.samples.length+" points"); };
+      $("#rsFinish").onclick=e=>{ e.preventDefault(); S=prev; pendingEndReason="user_finished"; $("#diagBanner").innerHTML=""; endSession(); };
+      $("#rsDrop").onclick=e=>{ e.preventDefault(); clearSave(); $("#diagBanner").innerHTML=""; };
+    }
+  }
+
+  // ---------- boot ----------
+  queryPerm();
+  tryRestore();
+})();
+</script>
+
+</body>
+</html>
