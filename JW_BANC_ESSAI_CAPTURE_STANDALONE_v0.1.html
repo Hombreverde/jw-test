@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e1512">
+<!-- build v0.2 (2026-08-01) : drop fix pre-start + dedup horodatages + permission_state via precision. app_version banc-essai-0.2 -->
 <style>:root{color-scheme:light dark}html,body{margin:0}</style>
 </head>
 <body>
@@ -170,7 +171,7 @@
   <header class="top">
     <div>
       <div class="brand">Journey Walker · Banc d'essai</div>
-      <div class="route" id="routeLabel">OTT-BYWARD-PARL · v0.1</div>
+      <div class="route" id="routeLabel">OTT-BYWARD-PARL · v0.1 · outil v0.2</div>
     </div>
     <div class="wl" id="wlState">écran&nbsp;: —</div>
   </header>
@@ -301,7 +302,7 @@
   "use strict";
   const $ = s => document.querySelector(s);
   const LS_KEY = "jw_banc_essai_session_v1";
-  const APP_VERSION = "banc-essai-0.1";
+  const APP_VERSION = "banc-essai-0.2";
   const ROUTE_ID = "OTT-BYWARD-PARL";
   const ROUTE_VERSION = "0.1";
 
@@ -391,6 +392,9 @@
     lastSampleTs = pos.timestamp;
     if(!S || paused) { renderLive(pos); return; }
     const c=pos.coords;
+    // v0.2 — écarte les fix antérieurs au démarrage et les horodatages en double / hors-ordre
+    if(S.started_at && pos.timestamp < S.started_at){ renderLive(pos); return; }
+    if(S._lastTs!=null && pos.timestamp <= S._lastTs){ renderLive(pos); return; }
     let qflag="ok";
     if(c.accuracy>50) qflag="low_accuracy";
     S.samples.push({
@@ -402,9 +406,11 @@
       speed_mps: (c.speed==null||isNaN(c.speed))?null:Math.round(c.speed*100)/100,
       course_deg: (c.heading==null||isNaN(c.heading))?null:Math.round(c.heading),
       source_state: document.hidden ? "background":"foreground",
-      permission_state: permState==="granted" ? "precise_when_in_use" : "reduced_when_in_use",
+      // v0.2 — précis/approx déduit de la précision réelle (l'API permissions est peu fiable sur iOS)
+      permission_state: (c.accuracy!=null && c.accuracy<100) ? "precise_when_in_use" : "reduced_when_in_use",
       quality_flag: qflag
     });
+    S._lastTs = pos.timestamp;
     renderLive(pos);
     save();
   }
