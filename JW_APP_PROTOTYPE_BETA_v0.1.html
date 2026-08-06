@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1512">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JW Ottawa">
+<!-- build v0.1 (2026-08-06) : Volet 2 outil marcheur — prototype fonctionnel, route OTT-DOWNTOWN-PARL-CANAL-BYWARD -->
+<style>:root{color-scheme:light dark}html,body{margin:0}</style>
+<title>Journey Walker — Prototype outil marcheur · Ottawa</title>
+<style>
+  :root {
+    --bg:#0e1512; --panel:#16211c; --panel-2:#1c2a24;
+    --ink:#e9f1ec; --ink-soft:#9fb0a8; --ink-faint:#6d7f77;
+    --line:#26362f; --line-strong:#33473e;
+    --accent:#e0a458; --accent-ink:#f0c088;
+    --good:#4fbf87; --good-bg:#12271e;
+    --fair:#e0b354; --fair-bg:#2a2413;
+    --poor:#e0755a; --poor-bg:#2e1a15;
+    --idle:#6d7f77; --idle-bg:#1a2420;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Consolas",monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --radius:16px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:#eef2f0; --panel:#ffffff; --panel-2:#f3f7f4;
+      --ink:#152019; --ink-soft:#4c5d55; --ink-faint:#78897f;
+      --line:#dde6e1; --line-strong:#c6d2cb;
+      --accent:#b06a24; --accent-ink:#8a5015;
+      --good:#2f8a5e; --good-bg:#e4f2ea;
+      --fair:#9a7817; --fair-bg:#f4ecd4;
+      --poor:#b34a2f; --poor-bg:#f4ddd5;
+      --idle:#78897f; --idle-bg:#e8eeea;
+    }
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; }
+  .app { background:var(--bg); color:var(--ink); font-family:var(--sans); min-height:100vh;
+    display:flex; flex-direction:column; max-width:640px; margin:0 auto; -webkit-font-smoothing:antialiased; }
+  h1,h2,h3 { margin:0; }
+  .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .screen { flex:1; display:flex; flex-direction:column; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .hidden { display:none !important; }
+
+  header.top { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px; }
+  .brand { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); font-family:var(--mono); }
+  .brand b { color:var(--ink-soft); }
+
+  /* ---------- ROUTE CARDS (select screen) ---------- */
+  .cards { display:flex; flex-direction:column; gap:12px; }
+  .rcard { border-radius:var(--radius); padding:18px; border:1px solid var(--line); background:var(--panel);
+    display:flex; flex-direction:column; gap:6px; text-align:left; width:100%; cursor:pointer; touch-action:manipulation; }
+  .rcard:active { transform:scale(.99); }
+  .rcard .rname { font-size:19px; font-weight:700; }
+  .rcard .rmeta { font-size:14px; color:var(--ink-soft); }
+  .rcard.disabled { opacity:.5; border-style:dashed; cursor:default; }
+  .rcard.disabled:active { transform:none; }
+  .rcard .rtag { display:inline-block; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    background:var(--panel-2); color:var(--ink-faint); border-radius:8px; padding:3px 8px; margin-top:4px; align-self:flex-start; }
+
+  /* ---------- DETAIL screen ---------- */
+  .preview { font-size:16px; line-height:1.55; color:var(--ink-soft); margin:10px 0 18px; }
+  .duration-badge { display:inline-flex; align-items:center; gap:6px; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:20px; padding:6px 14px; font-size:14px; font-weight:600; color:var(--accent-ink); margin-bottom:14px; align-self:flex-start; }
+  .stoplist { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+  .stop-row { display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; font-size:15px; }
+  .stop-num { width:26px; height:26px; border-radius:50%; background:var(--panel-2); border:1px solid var(--line-strong);
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--ink-soft); flex:none; }
+
+  /* ---------- BUTTONS (shared, ergonomie 55-80) ---------- */
+  .btn { border:none; border-radius:var(--radius); padding:20px; font-size:19px; font-weight:700; font-family:var(--sans);
+    color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; touch-action:manipulation;
+    transition:transform .06s ease; user-select:none; width:100%; line-height:1.3; }
+  .btn:active { transform:scale(.98); }
+  .btn .ic { font-size:22px; }
+  .btn-primary { background:var(--good); font-size:21px; padding:22px; }
+  .btn-go { background:var(--good); font-size:26px; padding:28px; }
+  .btn-secondary { background:var(--panel-2); color:var(--ink); border:1px solid var(--line-strong); }
+  .btn-ghost { background:transparent; color:var(--ink-soft); border:1px solid var(--line-strong); font-size:16px; padding:16px; }
+  .btn-native { background:var(--panel-2); color:var(--accent-ink); border:1px solid var(--line-strong); font-size:16px; padding:16px; }
+  .spacer { flex:1; }
+  .stack { display:flex; flex-direction:column; gap:10px; }
+  .bottom-action { margin-top:16px; }
+
+  /* ---------- WALK screen ---------- */
+  .status { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px;
+    border:1px solid var(--line); background:var(--idle-bg); margin-bottom:14px; }
+  .status .beacon { width:13px; height:13px; border-radius:50%; background:var(--idle); flex:none; }
+  .status.s-good { background:var(--good-bg); border-color:var(--good); } .status.s-good .beacon{background:var(--good);}
+  .status.s-fair { background:var(--fair-bg); border-color:var(--fair); } .status.s-fair .beacon{background:var(--fair);}
+  .status.s-poor { background:var(--poor-bg); border-color:var(--poor); } .status.s-poor .beacon{background:var(--poor);}
+  .status .st-txt { font-size:13px; color:var(--ink-soft); }
+
+  .compass { position:relative; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px; text-align:center; margin-bottom:14px; }
+  .compass .arrow { font-size:56px; line-height:1; margin-bottom:6px; transition:transform .3s ease; display:inline-block; }
+  .compass .dist { font-size:34px; font-weight:800; font-family:var(--mono); letter-spacing:-.02em; }
+  .compass .distlbl { font-size:13px; color:var(--ink-soft); margin-top:2px; }
+
+  .poi-card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:14px; }
+  .poi-card .poi-eyebrow { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); font-family:var(--mono); margin-bottom:4px; }
+  .poi-card .poi-name { font-size:20px; font-weight:700; margin-bottom:8px; }
+  .poi-card .poi-hook { font-size:16px; line-height:1.55; color:var(--ink-soft); }
+  .poi-card.reached { border-color:var(--good); }
+
+  .banner-calm { border-radius:12px; padding:14px 16px; font-size:15px; line-height:1.5; margin-bottom:14px;
+    background:var(--fair-bg); border:1px solid var(--fair); color:var(--ink); display:flex; align-items:center; gap:10px; }
+  .banner-calm .ic { font-size:22px; flex:none; }
+
+  .progress-dots { display:flex; gap:6px; justify-content:center; margin-bottom:14px; }
+  .progress-dots .d { width:9px; height:9px; border-radius:50%; background:var(--line-strong); }
+  .progress-dots .d.done { background:var(--good); }
+  .progress-dots .d.now { background:var(--accent); width:12px; height:12px; }
+
+  /* ---------- FINISH screen ---------- */
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:14px; }
+  .sum-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:4px; }
+  .sum { background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:12px; text-align:center; }
+  .sum .k { font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint); font-family:var(--mono); }
+  .sum .v { font-size:22px; font-weight:700; margin-top:4px; font-family:var(--mono); }
+
+  .qblock { margin-bottom:20px; }
+  .qtitle { font-size:16px; font-weight:700; margin-bottom:10px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { padding:12px 16px; border-radius:20px; border:1px solid var(--line-strong); background:var(--panel-2);
+    font-size:15px; cursor:pointer; touch-action:manipulation; }
+  .chip.sel { border-color:var(--accent); background:var(--fair-bg); color:var(--accent-ink); font-weight:700; }
+  textarea.fb { width:100%; background:var(--panel-2); border:1px solid var(--line-strong); border-radius:12px;
+    color:var(--ink); padding:12px; font-family:var(--sans); font-size:15px; resize:vertical; min-height:70px; }
+  textarea#json { width:100%; min-height:110px; background:var(--panel-2); border:1px solid var(--line-strong);
+    border-radius:12px; color:var(--ink-soft); padding:12px; font-family:var(--mono); font-size:11px; margin-top:8px; }
+
+  .hint { font-size:13px; color:var(--ink-faint); text-align:center; margin:12px 2px 0; line-height:1.5; }
+  .banner { border-radius:12px; padding:12px 14px; font-size:13px; margin-bottom:12px; line-height:1.5; }
+  .banner.warn { background:var(--poor-bg); border:1px solid var(--poor); color:var(--ink); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand">Journey Walker <b>· prototype</b></div>
+    <div class="brand" id="modeLabel">Planification</div>
+  </header>
+
+  <!-- ================= SCREEN: SELECT (Planification) ================= -->
+  <div id="scrSelect" class="screen">
+    <h1 style="font-size:22px; margin-bottom:14px;">Choisir un parcours</h1>
+    <div class="cards" id="routeCards"></div>
+    <div class="hint">Prototype de test — un seul parcours est réel, les autres sont des maquettes.</div>
+  </div>
+
+  <!-- ================= SCREEN: DETAIL (Planification) ================= -->
+  <div id="scrDetail" class="screen hidden">
+    <h1 style="font-size:24px; margin-bottom:8px;" id="dName"></h1>
+    <div class="duration-badge" id="dDuration"></div>
+    <p class="preview" id="dPreview"></p>
+    <div class="stoplist" id="dStops"></div>
+    <div class="spacer"></div>
+    <div class="stack">
+      <button class="btn btn-native" id="btnNative"><span class="ic">↗</span> Comment s'y rendre</button>
+      <button class="btn btn-primary" id="btnStartWalk"><span class="ic">🥾</span> Je suis prêt·e — commencer la marche</button>
+      <button class="btn btn-ghost" id="btnBackSelect">← Choisir un autre parcours</button>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN: WALK (Marche) ================= -->
+  <div id="scrWalk" class="screen hidden">
+
+    <!-- pre-go -->
+    <div id="walkPreGo">
+      <h1 style="font-size:22px; margin-bottom:8px;" id="wName"></h1>
+      <p class="preview" style="margin-bottom:24px;">Appuie sur Aller quand tu es prêt·e à démarrer. Le suivi ne
+        commence qu'à ce moment — pas avant.</p>
+      <div class="spacer"></div>
+      <button class="btn btn-go" id="btnGo"><span class="ic">▶</span> Aller</button>
+      <button class="btn btn-ghost" style="margin-top:10px;" id="btnBackDetail2">← Retour</button>
+    </div>
+
+    <!-- live walk -->
+    <div id="walkLive" class="hidden">
+      <div class="status s-idle" id="statusBox">
+        <div class="beacon"></div>
+        <div class="st-txt" id="stTxt">Acquisition du signal…</div>
+      </div>
+
+      <div id="offRouteBanner"></div>
+
+      <div class="progress-dots" id="progressDots"></div>
+
+      <div class="compass" id="compassBox">
+        <div class="arrow" id="arrowEl">➤</div>
+        <div class="dist" id="distEl">—</div>
+        <div class="distlbl" id="distLbl">vers le prochain arrêt</div>
+      </div>
+
+      <div class="poi-card" id="poiCard">
+        <div class="poi-eyebrow" id="poiEyebrow">Prochain arrêt</div>
+        <div class="poi-name" id="poiName">—</div>
+        <div class="poi-hook hidden" id="poiHook"></div>
+      </div>
+
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" id="btnFinish" style="margin-top:10px;">■ Terminer la marche</button>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN: FINISH ================= -->
+  <div id="scrFinish" class="screen hidden">
+    <h1 style="font-size:22px; margin-bottom:4px;">Marche terminée</h1>
+    <p style="color:var(--ink-soft); font-size:14px; margin:0 0 16px;" id="fMeta"></p>
+
+    <div class="card">
+      <div class="sum-grid">
+        <div class="sum"><div class="k">Durée</div><div class="v" id="fDur">—</div></div>
+        <div class="sum"><div class="k">Arrêts atteints</div><div class="v" id="fReached">—</div></div>
+        <div class="sum"><div class="k">Points GPS</div><div class="v" id="fPts">—</div></div>
+      </div>
+    </div>
+
+    <div class="qblock">
+      <div class="qtitle">Quel arrêt as-tu préféré ?</div>
+      <div class="chips" id="fbFav"></div>
+    </div>
+    <div class="qblock">
+      <div class="qtitle">Un moment de confusion ? (optionnel)</div>
+      <textarea class="fb" id="fbConfusion" placeholder="Ex. : je ne savais pas si je devais tourner ici…"></textarea>
+    </div>
+    <div class="qblock">
+      <div class="qtitle">Tu recommanderais ce genre de parcours ?</div>
+      <div class="chips" id="fbReco">
+        <div class="chip" data-v="oui">Oui</div>
+        <div class="chip" data-v="peut-etre">Peut-être</div>
+        <div class="chip" data-v="non">Non</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:15px; margin-bottom:8px;">Exporter la marche</h3>
+      <div class="stack">
+        <button class="btn btn-secondary" id="btnDownload" style="font-size:16px; padding:16px;"><span class="ic">⬇</span> Télécharger le JSON</button>
+        <button class="btn btn-ghost" id="btnCopy" style="font-size:15px; padding:14px;">⧉ Copier</button>
+      </div>
+      <textarea id="json" readonly onclick="this.select()"></textarea>
+    </div>
+    <button class="btn btn-ghost" id="btnRestart">Nouvelle marche</button>
+    <div class="hint">Auto-test du propriétaire — José seul. Rien n'est publié, rien n'est envoyé automatiquement.</div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = s => document.querySelector(s);
+  const APP_VERSION = "jw-app-prototype-0.1";
+  const SCHEMA_VERSION = "0.2";
+
+  // ---------- ROUTE DATA (réel allégé — coordonnées dérivées de la marche pilote du 2026-08-04) ----------
+  // confidence: medium — waypoints échantillonnés sur la trace réelle, assignés à l'ordre connu des arrêts.
+  // Contenu narratif factice/minimal (décision José 2026-08-06, §6 du cadre Volet 2) — jamais publié.
+  const REAL_ROUTE = {
+    route_id: "OTT-DOWNTOWN-PARL-CANAL-BYWARD",
+    route_version: "0.1",
+    name: "Ottawa Downtown — Parlement, Canal Rideau, Marché By",
+    duration_label: "~40 min",
+    preview: "Marché By, le Parlement et le canal Rideau — une boucle courte au cœur d'Ottawa.",
+    start_point: { lat: 45.42953, lon: -75.69663, label: "Marché By (place du marché)" },
+    poi: [
+      { id:"p1", name:"Cathédrale St-Andrew", lat:45.42912, lon:-75.69802,
+        hook:"Une façade de pierre grise posée au coin d'une rue tranquille — un des repères silencieux du quartier." },
+      { id:"p2", name:"Passerelle du musée", lat:45.42715, lon:-75.69798,
+        hook:"Une passerelle piétonne offre un point de vue dégagé sur les environs, avant de rejoindre le parc." },
+      { id:"p3", name:"Major's Hill Park", lat:45.42528, lon:-75.69572,
+        hook:"Un parc en hauteur, entre les arbres, avec des échappées vers la rivière des Outaouais." },
+      { id:"p4", name:"Colline du Parlement", lat:45.42427, lon:-75.69647,
+        hook:"Le cœur institutionnel de la ville — pelouses, tours et un panorama sur le canal." },
+      { id:"p5", name:"Écluses / Château Laurier", lat:45.42757, lon:-75.69476,
+        hook:"Les écluses du canal Rideau, au pied d'un grand hôtel historique en pierre." }
+    ]
+  };
+  // Deux parcours-maquettes non fonctionnels — testent seulement l'écran de sélection (§4.3 du cadre).
+  const FAKE_ROUTES = [
+    { name:"Montmartre — pilote (à venir)", meta:"Paris · en préparation" },
+    { name:"Marais historique (à venir)", meta:"Paris · en préparation" }
+  ];
+
+  const REVEAL_RADIUS_M = 40;     // sous ce rayon, l'arrêt est considéré atteint
+  const OFFROUTE_THRESHOLD_M = 35;
+  const OFFROUTE_DEBOUNCE_MS = 8000;
+
+  // ---------- state ----------
+  let session = null;      // WalkSession-like object being built
+  let watchId = null;
+  let wakeLock = null;
+  let startedAt = null;
+  let targetIdx = 0;       // index into REAL_ROUTE.poi — POI actuellement visé
+  let reachedIds = [];
+  let offRouteSince = null;
+  let offRouteShown = false;
+  let lastPos = null;
+
+  // ---------- geo helpers ----------
+  function toRad(d){ return d*Math.PI/180; }
+  function haversine(lat1,lon1,lat2,lon2){
+    const R=6371000, dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(a));
+  }
+  function bearing(lat1,lon1,lat2,lon2){
+    const y=Math.sin(toRad(lon2-lon1))*Math.cos(toRad(lat2));
+    const x=Math.cos(toRad(lat1))*Math.sin(toRad(lat2))-Math.sin(toRad(lat1))*Math.cos(toRad(lat2))*Math.cos(toRad(lon2-lon1));
+    return (Math.atan2(y,x)*180/Math.PI + 360) % 360;
+  }
+  // distance point→segment, approximation plate (échelle urbaine, quelques centaines de mètres)
+  function pointSegDist(lat,lon,lat1,lon1,lat2,lon2){
+    const cosL=Math.cos(toRad((lat1+lat2)/2));
+    const x=(lon-lon1)*cosL, y=(lat-lat1);
+    const dx=(lon2-lon1)*cosL, dy=(lat2-lat1);
+    const len2=dx*dx+dy*dy;
+    let t = len2>0 ? Math.max(0,Math.min(1,(x*dx+y*dy)/len2)) : 0;
+    const px=lon1+t*dx/cosL, py=lat1+t*dy;
+    return haversine(lat,lon,py,px);
+  }
+  function crossTrackError(lat,lon){
+    const pts=[REAL_ROUTE.start_point, ...REAL_ROUTE.poi];
+    let min=Infinity;
+    for(let i=0;i<pts.length-1;i++){
+      const d=pointSegDist(lat,lon,pts[i].lat,pts[i].lon,pts[i+1].lat,pts[i+1].lon);
+      if(d<min) min=d;
+    }
+    return min;
+  }
+  function compassArrow(brg){
+    const dirs=["↑","↗","→","↘","↓","↙","←","↖"];
+    return dirs[Math.round(brg/45)%8];
+  }
+
+  // ---------- route cards (select screen) ----------
+  function renderCards(){
+    const wrap=$("#routeCards"); wrap.innerHTML="";
+    const real=document.createElement("button");
+    real.className="rcard";
+    real.innerHTML='<div class="rname">'+REAL_ROUTE.name+'</div><div class="rmeta">'+REAL_ROUTE.duration_label+' · '+REAL_ROUTE.poi.length+' arrêts</div><div class="rtag">Test réel</div>';
+    real.addEventListener("click",()=>showDetail());
+    wrap.appendChild(real);
+    FAKE_ROUTES.forEach(r=>{
+      const c=document.createElement("div");
+      c.className="rcard disabled";
+      c.innerHTML='<div class="rname">'+r.name+'</div><div class="rmeta">'+r.meta+'</div>';
+      wrap.appendChild(c);
+    });
+  }
+
+  function showScreen(id){
+    ["scrSelect","scrDetail","scrWalk","scrFinish"].forEach(s=>$("#"+s).classList.toggle("hidden", s!==id));
+  }
+
+  function showDetail(){
+    $("#dName").textContent=REAL_ROUTE.name;
+    $("#dDuration").textContent="🕐 "+REAL_ROUTE.duration_label;
+    $("#dPreview").textContent=REAL_ROUTE.preview;
+    const list=$("#dStops"); list.innerHTML="";
+    [REAL_ROUTE.start_point.label, ...REAL_ROUTE.poi.map(p=>p.name)].forEach((name,i)=>{
+      const row=document.createElement("div");
+      row.className="stop-row";
+      row.innerHTML='<div class="stop-num">'+(i+1)+'</div><div>'+name+'</div>';
+      list.appendChild(row);
+    });
+    $("#modeLabel").textContent="Planification";
+    showScreen("scrDetail");
+  }
+
+  $("#btnBackSelect").addEventListener("click",()=>showScreen("scrSelect"));
+  $("#btnNative").addEventListener("click",()=>{
+    const {lat,lon}=REAL_ROUTE.start_point;
+    window.open("https://maps.google.com/?daddr="+lat+","+lon,"_blank");
+  });
+  $("#btnStartWalk").addEventListener("click",()=>{
+    $("#wName").textContent=REAL_ROUTE.name;
+    $("#walkPreGo").classList.remove("hidden");
+    $("#walkLive").classList.add("hidden");
+    $("#modeLabel").textContent="Marche";
+    showScreen("scrWalk");
+  });
+  $("#btnBackDetail2").addEventListener("click",()=>showDetail());
+
+  // ---------- walk mode ----------
+  function newSession(){
+    return {
+      session_id:"JWAPP-"+Date.now(),
+      consent_ref:"OWNER_SELF_TEST",
+      route_id:REAL_ROUTE.route_id, route_version:REAL_ROUTE.route_version,
+      app_version:APP_VERSION, schema_version:SCHEMA_VERSION,
+      device_class:/iPhone|iPad|iPod/.test(navigator.userAgent)?"ios":(/Android/.test(navigator.userAgent)?"android":"other"),
+      started_at:null, ended_at:null, end_reason:null,
+      start_zone_generic:"Ottawa downtown",
+      samples:[], events:[], usage_feedback:null,
+      user_agent:navigator.userAgent
+    };
+  }
+  function pushEvent(kind, note){
+    session.events.push({event_id:"e"+session.events.length, timestamp:new Date().toISOString(), kind, note:note||null});
+  }
+
+  function setStatus(cls, txt){
+    const box=$("#statusBox"); box.className="status s-"+cls; $("#stTxt").textContent=txt;
+  }
+
+  function renderDots(){
+    const wrap=$("#progressDots"); wrap.innerHTML="";
+    REAL_ROUTE.poi.forEach((p,i)=>{
+      const d=document.createElement("div");
+      d.className="d"+(reachedIds.includes(p.id)?" done":(i===targetIdx?" now":""));
+      wrap.appendChild(d);
+    });
+  }
+
+  function renderTarget(pos){
+    if(targetIdx >= REAL_ROUTE.poi.length){
+      $("#poiEyebrow").textContent="Parcours terminé";
+      $("#poiName").textContent="Retour au point de départ quand tu veux.";
+      $("#poiHook").classList.add("hidden");
+      $("#distEl").textContent="—"; $("#arrowEl").textContent="✓";
+      return;
+    }
+    const target=REAL_ROUTE.poi[targetIdx];
+    $("#poiEyebrow").textContent="Prochain arrêt";
+    $("#poiName").textContent=target.name;
+    if(!pos) return;
+    const d=haversine(pos.coords.latitude,pos.coords.longitude,target.lat,target.lon);
+    const brg=bearing(pos.coords.latitude,pos.coords.longitude,target.lat,target.lon);
+    $("#distEl").textContent = d<1000 ? Math.round(d)+" m" : (d/1000).toFixed(1)+" km";
+    $("#arrowEl").textContent = compassArrow(brg);
+    if(d <= REVEAL_RADIUS_M){
+      $("#poiCard").classList.add("reached");
+      $("#poiHook").textContent=target.hook;
+      $("#poiHook").classList.remove("hidden");
+      if(!reachedIds.includes(target.id)){
+        reachedIds.push(target.id);
+        pushEvent("poi_reached", target.name);
+        renderDots();
+        setTimeout(()=>{
+          if(targetIdx < REAL_ROUTE.poi.length){
+            targetIdx++;
+            $("#poiCard").classList.remove("reached");
+            $("#poiHook").classList.add("hidden");
+            renderDots();
+          }
+        }, 3200);
+      }
+    }
+  }
+
+  function renderOffRoute(pos){
+    if(!pos) return;
+    const err=crossTrackError(pos.coords.latitude,pos.coords.longitude);
+    const now=Date.now();
+    if(err > OFFROUTE_THRESHOLD_M){
+      if(offRouteSince==null) offRouteSince=now;
+      if(now-offRouteSince > OFFROUTE_DEBOUNCE_MS && !offRouteShown){
+        offRouteShown=true;
+        $("#offRouteBanner").innerHTML='<div class="banner-calm"><span class="ic">🧭</span><span>Vous explorez — le parcours vous attend. Reviens quand tu veux, rien n\'est perdu.</span></div>';
+        pushEvent("off_route_shown", "cross_track≈"+Math.round(err)+"m");
+      }
+    } else {
+      offRouteSince=null;
+      if(offRouteShown){ offRouteShown=false; $("#offRouteBanner").innerHTML=""; }
+    }
+  }
+
+  function onPos(pos){
+    lastPos=pos;
+    const a=pos.coords.accuracy;
+    if(a<10) setStatus("good","Signal bon · précision "+Math.round(a)+" m");
+    else if(a<=25) setStatus("fair","Signal moyen · précision "+Math.round(a)+" m");
+    else setStatus("poor","Signal faible · précision "+Math.round(a)+" m");
+
+    session.samples.push({
+      sample_id:"s"+session.samples.length, timestamp:new Date(pos.timestamp).toISOString(),
+      latitude:pos.coords.latitude, longitude:pos.coords.longitude,
+      horizontal_accuracy_m: a==null?null:Math.round(a*10)/10,
+      speed_mps:(pos.coords.speed==null||isNaN(pos.coords.speed))?null:Math.round(pos.coords.speed*100)/100,
+      source_state: document.hidden?"background":"foreground",
+      quality_flag: a>50?"low_accuracy":"ok"
+    });
+
+    renderTarget(pos);
+    renderOffRoute(pos);
+  }
+
+  function onErr(err){
+    const msg=(err&&err.message)||"";
+    if(err && err.code===1){
+      const policyBlocked=/policy|disabled|permission|feature/i.test(msg);
+      setStatus("poor","GPS bloqué"+(policyBlocked?" — héberge ce fichier hors d'un iframe (GitHub Pages).":" — autorise la position dans les réglages."));
+    } else if(err && err.code===2){
+      setStatus("poor","Position indisponible — patiente à ciel ouvert.");
+    } else {
+      setStatus("fair","Acquisition en cours…");
+    }
+  }
+
+  async function requestWake(){
+    try{ if("wakeLock" in navigator){ wakeLock=await navigator.wakeLock.request("screen"); } }catch(e){}
+  }
+  function releaseWake(){ try{ if(wakeLock){ wakeLock.release(); wakeLock=null; } }catch(e){} }
+
+  $("#btnGo").addEventListener("click",()=>{
+    session=newSession();
+    startedAt=Date.now();
+    session.started_at=startedAt;
+    targetIdx=0; reachedIds=[]; offRouteSince=null; offRouteShown=false;
+    pushEvent("start","Go");
+    $("#walkPreGo").classList.add("hidden");
+    $("#walkLive").classList.remove("hidden");
+    renderDots(); renderTarget(null);
+    if("geolocation" in navigator){
+      watchId=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true, maximumAge:0, timeout:30000});
+    } else {
+      setStatus("poor","Pas de GPS sur ce navigateur.");
+    }
+    requestWake();
+  });
+
+  $("#btnFinish").addEventListener("click",()=>{
+    if(watchId!=null){ try{navigator.geolocation.clearWatch(watchId);}catch(e){} watchId=null; }
+    releaseWake();
+    session.ended_at=Date.now();
+    session.end_reason="user_finished";
+    pushEvent("finish","Terminer");
+    showFinish();
+  });
+
+  // ---------- finish screen ----------
+  let selFav=null, selReco=null;
+  function showFinish(){
+    const dur=session.ended_at-session.started_at;
+    const m=Math.floor(dur/60000), s=Math.floor((dur%60000)/1000);
+    $("#fMeta").textContent=new Date(session.started_at).toLocaleString()+" · "+REAL_ROUTE.route_id;
+    $("#fDur").textContent=m+":"+String(s).padStart(2,"0");
+    $("#fReached").textContent=reachedIds.length+"/"+REAL_ROUTE.poi.length;
+    $("#fPts").textContent=session.samples.length;
+
+    const fav=$("#fbFav"); fav.innerHTML="";
+    REAL_ROUTE.poi.forEach(p=>{
+      const c=document.createElement("div"); c.className="chip"; c.textContent=p.name; c.dataset.v=p.id;
+      c.addEventListener("click",()=>{ fav.querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); c.classList.add("sel"); selFav=p.id; });
+      fav.appendChild(c);
+    });
+    $("#fbReco").querySelectorAll(".chip").forEach(c=>{
+      c.addEventListener("click",()=>{ $("#fbReco").querySelectorAll(".chip").forEach(x=>x.classList.remove("sel")); c.classList.add("sel"); selReco=c.dataset.v; });
+    });
+
+    $("#json").value=JSON.stringify(buildExport(),null,2);
+    showScreen("scrFinish");
+  }
+
+  function buildExport(){
+    session.usage_feedback={ favorite_poi_id:selFav, confusion_note:$("#fbConfusion").value.trim()||null, would_recommend:selReco };
+    return {
+      _meta:{ tool:"JW prototype outil marcheur — Volet 2", generated_at:new Date().toISOString(),
+        note:"Auto-test du propriétaire — José seul. Contenu narratif factice/minimal, jamais publié." },
+      WalkSession:{
+        session_id:session.session_id, consent_ref:session.consent_ref, route_id:session.route_id, route_version:session.route_version,
+        app_version:session.app_version, schema_version:session.schema_version, device_class:session.device_class,
+        started_at:new Date(session.started_at).toISOString(), ended_at:new Date(session.ended_at).toISOString(),
+        end_reason:session.end_reason, start_zone_generic:session.start_zone_generic, user_agent:session.user_agent,
+        sample_count:session.samples.length
+      },
+      LocationSample:session.samples,
+      InteractionEvent:session.events,
+      UsageFeedback: session.usage_feedback
+    };
+  }
+
+  function download(){
+    try{
+      const blob=new Blob([JSON.stringify(buildExport(),null,2)],{type:"application/json"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url; a.download="JW_APP_PROTOTYPE_OTT_"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),2000);
+    }catch(e){ alert("Téléchargement bloqué — utilise « Copier » ou sélectionne le texte ci-dessous."); }
+  }
+  async function copyJson(){
+    try{ await navigator.clipboard.writeText($("#json").value); flash($("#btnCopy"),"Copié ✓"); }
+    catch(e){ $("#json").select(); try{document.execCommand("copy");flash($("#btnCopy"),"Copié ✓");}catch(_){ flash($("#btnCopy"),"Sélectionne le texte"); } }
+  }
+  function flash(btn,txt){ const o=btn.textContent; btn.textContent=txt; setTimeout(()=>btn.textContent=o,1400); }
+
+  $("#btnDownload").addEventListener("click",download);
+  $("#btnCopy").addEventListener("click",copyJson);
+  $("#btnRestart").addEventListener("click",()=>{ location.reload(); });
+  $("#fbConfusion").addEventListener("blur",()=>{ $("#json").value=JSON.stringify(buildExport(),null,2); });
+
+  // ---------- boot ----------
+  renderCards();
+  showScreen("scrSelect");
+})();
+</script>
+</body>
+</html>
