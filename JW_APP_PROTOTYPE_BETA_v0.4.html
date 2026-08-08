@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Journey Walker — Ottawa (prototype v0.4)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root{
+    --bg:#12161c; --card:#1b212a; --line:#2c3542; --ink:#f2f5f9; --dim:#a8b3c2;
+    --acc:#5db3ff; --ok:#4ec98a; --warn:#efb54b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg);color:var(--ink);
+    font:400 18px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    overscroll-behavior:none;-webkit-text-size-adjust:100%;
+  }
+  .screen{display:none;height:100dvh;flex-direction:column}
+  .screen.on{display:flex}
+  header{
+    padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);background:var(--card)
+  }
+  header h1{margin:0;font-size:17px;font-weight:600;flex:1;line-height:1.25}
+  .chip{
+    font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;background:#242d39;
+    border:1px solid var(--line);color:var(--dim);padding:6px 11px;border-radius:999px;white-space:nowrap
+  }
+  .chip.live{color:var(--ok);border-color:#2f5c46}
+  .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 0;flex:1}
+  .panel{background:var(--card);border-top:1px solid var(--line);padding:14px 16px calc(env(safe-area-inset-bottom) + 14px)}
+  .maprow{position:relative;flex:1;display:flex;min-height:170px}
+  #map,#mapPlan{flex:1;background:#0d1116}
+  .leaflet-container{background:#0d1116;font:inherit}
+  .leaflet-control-attribution{font-size:10px;background:rgba(20,25,32,.82);color:#8794a5}
+  .leaflet-control-attribution a{color:#8794a5}
+
+  /* ── repère du marcheur : cône d'orientation + pastille ── */
+  .me{width:78px;height:78px;position:relative;pointer-events:none}
+  .me-cone{position:absolute;inset:0;transition:transform .3s ease-out}
+  .me-cone::before{
+    content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
+    border-left:22px solid transparent;border-right:22px solid transparent;
+    border-bottom:30px solid rgba(93,179,255,.5);
+    filter:drop-shadow(0 0 3px rgba(0,0,0,.6))
+  }
+  .me-dot{
+    position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;
+    border-radius:50%;background:var(--acc);border:4px solid #fff;
+    box-shadow:0 0 0 2.5px rgba(0,0,0,.6),0 3px 10px rgba(0,0,0,.55)
+  }
+  .me.nohead .me-cone{display:none}
+
+  h2.big{margin:0 0 10px;font-size:23px;font-weight:650;line-height:1.2}
+  .eyebrow{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 4px}
+  .lead{font-size:17px;color:var(--dim);margin:0 0 14px;line-height:1.5}
+
+  .metrics{display:flex;gap:9px;margin-bottom:12px}
+  .metric{flex:1;background:#161c24;border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center}
+  .metric .v{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15}
+  .metric .k{font-size:12px;color:var(--dim);margin-top:2px}
+
+  .hook{margin:0 0 12px;padding:12px 14px;background:#16281f;border:1px solid #2c5a41;border-radius:12px;font-size:17px;line-height:1.5}
+  .hook.hidden{display:none}
+  .dots{display:flex;gap:6px;margin-bottom:13px}
+  .dots .d{height:7px;flex:1;border-radius:99px;background:#2b3441}
+  .dots .d.now{background:var(--acc)} .dots .d.done{background:var(--ok)}
+
+  button{width:100%;min-height:58px;border:0;border-radius:14px;font:600 19px/1 inherit;color:#08121c;background:var(--acc);cursor:pointer;padding:0 16px}
+  button.ghost{background:transparent;color:var(--acc);border:1.5px solid #33465c;min-height:52px;font-size:17px}
+  button.stop{background:#3a2b30;color:#ffb3b3;border:1.5px solid #5c3a42}
+  button.warn{background:var(--warn);color:#241a05}
+  button+button{margin-top:9px}
+  button:disabled{opacity:.4;cursor:default}
+
+  .banner{
+    position:absolute;left:12px;right:12px;bottom:12px;z-index:900;display:flex;gap:11px;align-items:flex-start;
+    background:#2a2519;border:1px solid #5b4a22;border-radius:13px;padding:12px 14px;font-size:16px;
+    line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.45)
+  }
+  .warnbox{background:#2a2519;border:1px solid #5b4a22;border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.45;margin:0 0 14px}
+  .okbox{background:#16281f;border:1px solid #2c5a41;border-radius:12px;padding:12px 14px;font-size:16px;line-height:1.45;margin:0 0 14px}
+
+  /* ── catalogue ── */
+  .rcard{
+    display:block;width:100%;text-align:left;background:#161c24;border:1.5px solid var(--line);
+    border-radius:15px;padding:0;margin-bottom:12px;overflow:hidden;color:inherit;min-height:0;font:inherit
+  }
+  .rcard .band{height:64px;background:linear-gradient(120deg,#2a4a68,#1d3348);position:relative}
+  .rcard .band.p{background:linear-gradient(120deg,#3a3348,#2b2536)}
+  .rcard .band span{position:absolute;left:14px;bottom:9px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#cfe0f0;opacity:.9}
+  .rcard .body{padding:12px 15px 14px}
+  .rcard h3{margin:0 0 5px;font-size:19px;font-weight:650;line-height:1.25}
+  .rcard .meta{font-size:14px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .rcard .tag{display:inline-block;margin-top:9px;font-size:13px;padding:4px 10px;border-radius:99px;background:#23303f;color:var(--acc)}
+  .rcard.soon{opacity:.62}
+  .rcard.soon .tag{background:#2f2a20;color:var(--warn)}
+
+  .stoplist{list-style:none;margin:0 0 16px;padding:0}
+  .stoplist li{display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid #232b36;font-size:16px}
+  .stoplist li:last-child{border-bottom:0}
+  .stoplist .n{flex:0 0 28px;height:28px;border-radius:50%;background:#243040;color:var(--acc);font-size:13px;font-weight:700;display:grid;place-items:center}
+  .stoplist .tx{flex:1;line-height:1.3}
+  .stoplist .p{font-size:12px;color:var(--warn);display:block;margin-top:2px}
+  .stoplist .m{color:var(--dim);font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+  fieldset{border:0;padding:0;margin:0 0 18px}
+  legend{font-size:17px;font-weight:600;padding:0;margin-bottom:9px}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{display:flex;align-items:center;gap:11px;padding:13px 14px;background:#161c24;border:1.5px solid var(--line);border-radius:12px;font-size:16px;cursor:pointer}
+  .opt.sel{border-color:var(--acc);background:#16232f}
+  textarea{width:100%;min-height:86px;background:#161c24;border:1.5px solid var(--line);border-radius:12px;color:var(--ink);font:inherit;font-size:16px;padding:12px;resize:vertical}
+  .note{font-size:14px;color:var(--dim);line-height:1.5;margin:14px 0}
+  .fail{padding:26px 18px;text-align:center;color:var(--dim);font-size:16px;line-height:1.55}
+  .pausewrap{flex:1;display:grid;place-items:center;padding:24px;text-align:center}
+  .pausewrap .big{font-size:26px;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<!-- ═══ 1. CATALOGUE ═══ -->
+<section id="scCat" class="screen on">
+  <header><h1>Promenades — choisis ton parcours</h1></header>
+  <div class="scroll">
+    <p class="lead">Parcours à pied, commentés, à ton rythme. Repère-les depuis ton hôtel et planifie ta journée.</p>
+    <div id="catList"></div>
+    <p class="note">Les parcours de Paris sont en cours de préparation avec des marcheurs bénévoles du quartier.
+      Seul le parcours d'Ottawa est utilisable aujourd'hui.</p>
+  </div>
+</section>
+
+<!-- ═══ 2. FICHE DU PARCOURS ═══ -->
+<section id="scPlan" class="screen">
+  <header><h1 id="planTitle">—</h1></header>
+  <div class="maprow"><div id="mapPlan"></div></div>
+  <div class="panel">
+    <p class="lead" id="planLead">—</p>
+    <button id="btnStops" class="ghost">Voir les arrêts en détail</button>
+    <button id="btnPre">Commencer ce parcours</button>
+  </div>
+</section>
+
+<!-- ═══ 3. LISTE DES ARRÊTS ═══ -->
+<section id="scStops" class="screen">
+  <header><h1>Les arrêts du parcours</h1></header>
+  <div class="scroll">
+    <ul class="stoplist" id="stopList"></ul>
+    <p class="note">Distances et durées calculées sur le vrai réseau piéton (OpenStreetMap), pas à vol d'oiseau.
+      Les durées ne comptent ni les pauses ni les visites.</p>
+  </div>
+  <div class="panel"><button id="btnBackPlan" class="ghost">Retour</button></div>
+</section>
+
+<!-- ═══ 4. PRÉ-MARCHE ═══ -->
+<section id="scPre" class="screen">
+  <header><h1>Rejoindre le départ</h1><span class="chip" id="preAcc">GPS…</span></header>
+  <div class="maprow"><div id="map"></div></div>
+  <div class="panel">
+    <p class="eyebrow">Point de départ</p>
+    <h2 class="big" id="preName">—</h2>
+    <div class="metrics">
+      <div class="metric"><div class="v" id="preDist">—</div><div class="k">à vol d'oiseau</div></div>
+      <div class="metric"><div class="v" id="preEta">—</div><div class="k">à pied environ</div></div>
+    </div>
+    <div id="preHint" class="warnbox" style="display:none"></div>
+    <div id="compBox" class="okbox" style="display:none"></div>
+    <button id="btnComp" class="ghost">Activer la boussole</button>
+    <button id="btnNav" class="ghost">Ouvrir dans Plans / Google Maps</button>
+    <button id="btnGo">Go — je démarre</button>
+  </div>
+</section>
+
+<!-- ═══ 5. MARCHE ═══ -->
+<section id="scWalk" class="screen">
+  <header><h1 id="wTitle">Parcours en cours</h1><span class="chip live" id="chipTime">0 min</span></header>
+  <div class="maprow"><div id="mapHost" style="flex:1;display:flex"></div><div id="offRoute"></div></div>
+  <div class="panel">
+    <p class="eyebrow" id="wEyebrow">Prochain arrêt</p>
+    <h2 class="big" id="wName">—</h2>
+    <p class="hook hidden" id="wHook"></p>
+    <div class="metrics">
+      <div class="metric"><div class="v" id="wDist">—</div><div class="k">jusqu'au prochain</div></div>
+      <div class="metric"><div class="v" id="wEta">—</div><div class="k">d'ici là</div></div>
+      <div class="metric"><div class="v" id="wLeft">—</div><div class="k">reste au total</div></div>
+    </div>
+    <div class="dots" id="dots"></div>
+    <button id="btnPause" class="warn" style="display:none">Mettre en veille — je visite</button>
+    <button id="btnFinish" class="stop">Terminer le parcours</button>
+  </div>
+</section>
+
+<!-- ═══ 6. EN VEILLE ═══ -->
+<section id="scPause" class="screen">
+  <header><h1>Parcours en veille</h1></header>
+  <div class="pausewrap">
+    <div>
+      <p class="big">⏸</p>
+      <h2 class="big" id="pauseWhere">—</h2>
+      <p class="lead">Le chronomètre est arrêté et le GPS ne t'enregistre plus.<br>
+        Prends ton temps — le parcours t'attend exactement où tu l'as laissé.</p>
+      <p class="chip" id="pauseFor">en veille depuis 0 min</p>
+    </div>
+  </div>
+  <div class="panel"><button id="btnResume">Reprendre le parcours</button></div>
+</section>
+
+<!-- ═══ 7. FIN ═══ -->
+<section id="scEnd" class="screen">
+  <header><h1>C'est fini — merci</h1></header>
+  <div class="scroll">
+    <p class="lead" id="endSummary">—</p>
+    <fieldset><legend>Quel arrêt t'a le plus plu ?</legend><div class="opts" id="favOpts"></div></fieldset>
+    <fieldset><legend>Qu'est-ce qui t'a gêné ou dérouté ?</legend>
+      <textarea id="confusion" placeholder="Écris librement — même une petite chose."></textarea></fieldset>
+    <fieldset><legend>Recommanderais-tu cette promenade ?</legend>
+      <div class="opts" id="recOpts">
+        <label class="opt" data-v="oui"><span>Oui</span></label>
+        <label class="opt" data-v="peut-etre"><span>Peut-être</span></label>
+        <label class="opt" data-v="non"><span>Non</span></label>
+      </div></fieldset>
+  </div>
+  <div class="panel"><button id="btnExport">Enregistrer les données de la marche</button></div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ═══ DONNÉES — injectées à la construction ═══ */
+const ROUTE = {"route_id":"OTT-MUSEE-KIWEKI-PARL-BYWARD","route_version":"0.4","name":"Ottawa — du musée au marché By","stops":[{"id":"s0","name":"Musée des beaux-arts du Canada","lat":45.42953,"lon":-75.69881,"hook":"Le Musée des beaux-arts et sa grande verrière. L'araignée de bronze devant s'appelle Maman.","along":0.0,"pausable":false,"leg_d":0,"leg_t":0},{"id":"s1","name":"Basilique-cathédrale Notre-Dame","lat":45.42979,"lon":-75.69639,"hook":"La basilique-cathédrale Notre-Dame, 1841 — la plus ancienne église d'Ottawa encore debout. Deux flèches d'étain.","along":290.3,"pausable":false,"leg_d":290,"leg_t":232},{"id":"s2","name":"Musée des beaux-arts — retour","lat":45.42953,"lon":-75.69881,"hook":"De retour devant le musée. C'est le moment d'entrer si tu veux le visiter — mets le parcours en veille.","along":580.9,"pausable":true,"leg_d":291,"leg_t":233},{"id":"s3","name":"Pointe Kìwekì","lat":45.42951,"lon":-75.70092,"hook":"Pointe Kìwekì : le belvédère sur la rivière des Outaouais. « Kìwekì » veut dire « retour au foyer » en anishinabemowin.","along":862.3,"pausable":false,"leg_d":281,"leg_t":225},{"id":"s4","name":"Passerelle Pìdàban","lat":45.42862,"lon":-75.69978,"hook":"La passerelle Pìdàban. La vue s'ouvre d'un coup sur la rivière et la colline du Parlement.","along":1027.3,"pausable":false,"leg_d":165,"leg_t":132},{"id":"s5","name":"Parc Major","lat":45.42721,"lon":-75.69709,"hook":"Le parc Major, l'ancien jardin du colonel By. En contrebas, les huit écluses du canal Rideau, creusées à la main entre 1826 et 1832. Flâne dans les plates-bandes si le cœur t'en dit.","along":1297.2,"pausable":false,"leg_d":270,"leg_t":216},{"id":"s6","name":"Escalier des Sappeurs","lat":45.42443,"lon":-75.69515,"hook":"L'escalier des Sappeurs — une trentaine de marches taillées par les sapeurs royaux. Prends ton temps, puis tourne à droite sur Wellington.","along":1713.3,"pausable":false,"leg_d":416,"leg_t":333},{"id":"s7","name":"Colline du Parlement","lat":45.4247,"lon":-75.6988,"hook":"La colline du Parlement et la Tour de la Paix, 53 cloches au carillon. Tu peux le visiter — mets le parcours en veille.","along":2065.5,"pausable":true,"leg_d":352,"leg_t":282},{"id":"s8","name":"Marché By","lat":45.4275,"lon":-75.69256,"hook":"Le marché By, ouvert en 1826 du temps du colonel By. Fin du parcours.","along":2868.6,"pausable":false,"leg_d":803,"leg_t":642}],"line":[[45.42919,-75.69852],[45.42952,-75.69773],[45.42948,-75.6977],[45.42948,-75.69764],[45.42936,-75.69724],[45.42929,-75.69697],[45.42928,-75.69693],[45.42927,-75.69691],[45.42926,-75.69686],[45.42926,-75.69679],[45.42928,-75.69673],[45.42934,-75.69661],[45.42937,-75.69653],[45.42943,-75.69658],[45.4295,-75.69663],[45.42952,-75.69664],[45.42952,-75.69665],[45.42963,-75.69675],[45.42975,-75.69685],[45.42986,-75.69694],[45.42988,-75.69696],[45.4299,-75.69696],[45.42992,-75.69692],[45.43003,-75.69668],[45.42988,-75.69656],[45.42988,-75.69656],[45.43003,-75.69668],[45.42992,-75.69692],[45.4299,-75.69696],[45.42988,-75.69696],[45.42986,-75.69694],[45.42975,-75.69685],[45.42973,-75.6968],[45.42964,-75.69672],[45.42956,-75.69666],[45.42952,-75.69664],[45.4295,-75.69663],[45.42943,-75.69658],[45.42937,-75.69653],[45.42934,-75.69661],[45.42928,-75.69673],[45.42926,-75.69679],[45.42926,-75.69686],[45.42927,-75.69691],[45.42928,-75.69693],[45.42929,-75.69697],[45.42936,-75.69724],[45.42948,-75.69764],[45.42948,-75.6977],[45.42952,-75.69773],[45.42919,-75.69852],[45.42912,-75.69866],[45.42913,-75.69867],[45.42912,-75.69869],[45.42911,-75.69869],[45.42908,-75.6987],[45.42906,-75.69873],[45.42904,-75.69871],[45.429,-75.69872],[45.42899,-75.69876],[45.42897,-75.69874],[45.42893,-75.69875],[45.42891,-75.69881],[45.42891,-75.69886],[45.42894,-75.69888],[45.42892,-75.69891],[45.42893,-75.69897],[45.42895,-75.69899],[45.42894,-75.69902],[45.42895,-75.69907],[45.42899,-75.69911],[45.42898,-75.69914],[45.42898,-75.69917],[45.429,-75.6992],[45.42899,-75.69923],[45.429,-75.69929],[45.42903,-75.69931],[45.42901,-75.69934],[45.42903,-75.69943],[45.42908,-75.69947],[45.42911,-75.6995],[45.42907,-75.69951],[45.429,-75.69954],[45.42898,-75.69953],[45.42902,-75.69974],[45.42904,-75.69982],[45.42909,-75.69997],[45.42917,-75.70012],[45.42922,-75.70026],[45.42925,-75.70038],[45.42934,-75.7006],[45.42935,-75.70062],[45.42936,-75.70063],[45.42937,-75.70063],[45.42939,-75.70064],[45.42941,-75.70063],[45.42943,-75.70062],[45.42948,-75.70056],[45.4295,-75.70055],[45.42952,-75.70055],[45.42954,-75.70056],[45.42955,-75.70058],[45.42956,-75.70062],[45.42951,-75.70092],[45.42956,-75.70062],[45.42955,-75.70058],[45.42954,-75.70056],[45.42952,-75.70055],[45.4295,-75.70055],[45.42948,-75.70056],[45.42943,-75.70062],[45.42941,-75.70063],[45.42939,-75.70064],[45.42937,-75.70063],[45.42936,-75.70063],[45.42935,-75.70062],[45.42934,-75.7006],[45.42925,-75.70038],[45.42922,-75.70026],[45.42917,-75.70012],[45.42904,-75.70008],[45.42895,-75.70005],[45.42889,-75.70003],[45.42882,-75.69999],[45.42876,-75.69994],[45.4287,-75.69988],[45.42862,-75.69978],[45.42849,-75.69962],[45.4284,-75.69949],[45.42829,-75.69934],[45.42824,-75.69925],[45.4282,-75.69911],[45.42815,-75.69895],[45.42811,-75.69887],[45.42804,-75.69882],[45.42797,-75.69885],[45.42792,-75.69876],[45.42786,-75.69863],[45.42783,-75.69858],[45.42773,-75.6984],[45.4277,-75.69836],[45.42767,-75.69829],[45.42757,-75.69828],[45.42744,-75.69823],[45.42733,-75.69815],[45.42724,-75.69806],[45.42711,-75.6979],[45.42709,-75.69779],[45.42692,-75.69757],[45.42685,-75.69749],[45.4268,-75.69748],[45.42678,-75.69747],[45.42662,-75.6973],[45.42646,-75.69707],[45.42644,-75.69708],[45.42642,-75.69707],[45.42641,-75.69706],[45.42639,-75.69704],[45.42639,-75.69701],[45.42639,-75.69699],[45.42639,-75.69696],[45.42604,-75.69645],[45.42597,-75.69635],[45.4259,-75.69631],[45.42585,-75.6963],[45.42582,-75.69629],[45.42578,-75.69634],[45.42566,-75.69614],[45.42557,-75.69616],[45.42509,-75.69539],[45.42506,-75.69534],[45.42505,-75.69531],[45.42499,-75.69521],[45.42494,-75.69512],[45.4249,-75.69506],[45.42487,-75.69503],[45.42475,-75.6953],[45.4247,-75.69519],[45.42463,-75.69506],[45.42459,-75.69499],[45.42458,-75.69506],[45.42449,-75.69527],[45.42447,-75.69531],[45.42445,-75.69526],[45.42442,-75.69518],[45.42441,-75.69516],[45.42442,-75.69518],[45.42445,-75.69526],[45.42447,-75.69531],[45.42442,-75.69543],[45.42436,-75.69557],[45.4243,-75.69573],[45.42415,-75.69606],[45.42404,-75.69633],[45.42401,-75.69635],[45.42396,-75.6965],[45.42389,-75.69669],[45.42395,-75.69675],[45.42402,-75.6968],[45.42409,-75.69685],[45.42402,-75.69701],[45.424,-75.69705],[45.42398,-75.69711],[45.42401,-75.69714],[45.42408,-75.6972],[45.42399,-75.69742],[45.42398,-75.69744],[45.42403,-75.69749],[45.42406,-75.69751],[45.4241,-75.69755],[45.42407,-75.69763],[45.42403,-75.6977],[45.42406,-75.69773],[45.4244,-75.69802],[45.42441,-75.69804],[45.42442,-75.69806],[45.42442,-75.69807],[45.42447,-75.69811],[45.42451,-75.69814],[45.42435,-75.69851],[45.42451,-75.69814],[45.42447,-75.69811],[45.42442,-75.69807],[45.42442,-75.69806],[45.42441,-75.69804],[45.4244,-75.69802],[45.42406,-75.69773],[45.42403,-75.6977],[45.42407,-75.69763],[45.4241,-75.69755],[45.42406,-75.69751],[45.42403,-75.69749],[45.42398,-75.69744],[45.42399,-75.69742],[45.42408,-75.6972],[45.42401,-75.69714],[45.42398,-75.69711],[45.424,-75.69705],[45.42402,-75.69701],[45.42409,-75.69685],[45.42456,-75.69574],[45.42463,-75.69558],[45.42475,-75.6953],[45.42487,-75.69503],[45.42491,-75.69493],[45.42495,-75.69485],[45.42518,-75.69437],[45.42524,-75.69425],[45.42526,-75.69423],[45.42531,-75.6941],[45.42533,-75.69406],[45.42535,-75.69401],[45.42536,-75.69403],[45.42538,-75.69404],[45.4254,-75.69406],[45.42551,-75.69392],[45.42558,-75.69388],[45.42574,-75.69376],[45.42578,-75.69373],[45.42615,-75.69405],[45.42619,-75.69396],[45.42625,-75.69383],[45.42634,-75.69391],[45.42643,-75.69398],[45.42643,-75.69396],[45.42656,-75.69363],[45.42671,-75.69327],[45.42693,-75.69278],[45.42703,-75.69255],[45.42707,-75.69241],[45.42712,-75.69229],[45.42713,-75.69224],[45.4275,-75.69256]],"cum":[0.0,71.7,76.8,81.5,115.4,137.9,141.2,143.1,147.1,152.6,157.8,169.3,176.4,184.1,192.8,195.2,195.9,210.4,225.9,240.0,242.7,245.0,248.8,271.2,290.3,290.3,309.4,331.8,335.6,337.8,340.6,354.7,359.1,370.9,381.0,385.7,388.1,396.8,404.5,411.6,423.1,428.3,433.7,437.8,439.7,443.0,465.5,499.4,504.1,509.1,580.9,594.3,595.6,597.6,598.7,602.1,605.3,608.0,612.6,615.9,618.6,623.1,628.3,632.2,635.9,639.1,643.9,646.6,649.2,653.3,658.7,661.3,663.6,666.9,669.5,674.3,678.0,681.2,688.6,694.9,699.0,703.5,711.7,714.0,731.0,737.6,750.6,765.3,777.5,787.5,807.3,809.3,810.6,811.7,814.1,816.4,818.8,826.1,828.4,830.7,833.0,834.9,838.2,862.3,886.4,889.7,891.6,893.9,896.2,898.5,905.8,908.2,910.5,912.9,914.0,915.3,917.3,937.1,947.1,959.3,974.1,984.4,991.2,999.6,1007.4,1015.5,1027.3,1046.4,1060.7,1077.6,1086.6,1098.4,1112.0,1119.7,1128.4,1136.5,1145.5,1157.6,1162.8,1180.7,1185.3,1191.7,1202.8,1217.8,1231.5,1243.7,1262.8,1271.7,1297.2,1307.2,1312.8,1315.2,1337.4,1362.7,1365.0,1367.4,1368.7,1371.5,1373.8,1375.4,1377.7,1433.4,1444.4,1452.8,1458.4,1461.8,1467.7,1488.3,1498.4,1578.8,1583.9,1586.5,1596.8,1605.7,1612.2,1616.2,1641.2,1651.4,1664.2,1671.2,1676.8,1696.0,1699.9,1704.3,1711.4,1713.3,1715.3,1722.3,1726.8,1737.7,1750.5,1764.7,1795.4,1819.7,1823.4,1836.4,1853.1,1861.3,1870.0,1878.7,1893.4,1897.2,1902.4,1906.5,1915.6,1935.4,1937.4,1944.2,1947.8,1953.3,1960.3,1967.4,1971.5,2015.5,2017.4,2019.4,2020.1,2026.5,2031.5,2065.5,2099.4,2104.4,2110.8,2111.6,2113.5,2115.4,2159.5,2163.5,2170.6,2177.7,2183.1,2186.8,2193.6,2195.5,2215.4,2224.4,2228.5,2233.7,2237.5,2252.2,2353.4,2368.1,2393.7,2418.7,2427.7,2435.3,2480.7,2492.2,2494.9,2506.5,2510.3,2514.8,2516.7,2519.1,2521.8,2538.2,2546.6,2566.7,2571.7,2619.8,2628.1,2640.3,2652.1,2663.5,2665.0,2694.6,2727.2,2772.6,2793.8,2805.5,2816.4,2820.5,2868.6],"total_d":2867,"total_t":2298};
+const CATALOGUE = [{"ville":"Ottawa · Canada","nom":"Du musée au marché By","meta":"2,9 km · ~38 min de marche · 9 arrêts","ready":true},{"ville":"Paris · 18ᵉ","nom":"Montmartre — la Butte et ses escaliers","meta":"2,8 km · ~1 h 10 · 11 arrêts","ready":false},{"ville":"Paris · 3ᵉ–4ᵉ","nom":"Le Marais historique","meta":"3,1 km · ~1 h 15 · 12 arrêts","ready":false},{"ville":"Paris · 10ᵉ","nom":"Le canal Saint-Martin","meta":"3,4 km · ~1 h 20 · 9 arrêts","ready":false},{"ville":"Paris · 5ᵉ","nom":"Quartier latin — collèges et jardins","meta":"2,9 km · ~1 h 10 · 10 arrêts","ready":false},{"ville":"Paris · 20ᵉ","nom":"Belleville et ses ateliers","meta":"2,6 km · ~1 h 05 · 8 arrêts","ready":false}];
+
+/* ═══ RÉGLAGES ═══ */
+const REVEAL_M=40, OFFROUTE_M=45, OFFROUTE_MS=20000, NEAR_START_M=75, SPEED_FALLBACK=1.25;
+
+/* ═══ ÉTAT ═══ */
+let mode="cat", map=null, planMap=null, watchId=null, orientOn=false, heading=null;
+let meMarker=null, meHalo=null, lastPos=null;
+let targetIdx=0, reached=[], offSince=null, offShown=false, speeds=[];
+let session=null, tick=null, elapsedMs=0, runSince=null, pauseSince=null;
+
+const $=s=>document.querySelector(s);
+const rad=d=>d*Math.PI/180;
+function hav(a,o,b,p){
+  const R=6371000,dp=rad(b-a),dl=rad(p-o);
+  const x=Math.sin(dp/2)**2+Math.cos(rad(a))*Math.cos(rad(b))*Math.sin(dl/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+const fmtD=m=> m<1000 ? Math.round(m/5)*5+" m" : (m/1000).toFixed(1)+" km";
+const fmtT=s=>{ if(!isFinite(s)||s<0) return "—"; const m=Math.round(s/60);
+  return m<1?"moins d'1 min":m<60?m+" min":Math.floor(m/60)+" h "+String(m%60).padStart(2,"0"); };
+function walkedMs(){ return elapsedMs + (runSince ? Date.now()-runSince : 0); }
+
+function project(lat,lon){
+  let best={cross:Infinity,along:0};
+  for(let i=0;i<ROUTE.line.length-1;i++){
+    const [alat,alon]=ROUTE.line[i],[blat,blon]=ROUTE.line[i+1];
+    const ky=111320,kx=111320*Math.cos(rad(lat));
+    const ax=alon*kx,ay=alat*ky,bx=blon*kx,by=blat*ky,px=lon*kx,py=lat*ky;
+    const vx=bx-ax,vy=by-ay,L2=vx*vx+vy*vy;
+    let t=L2?((px-ax)*vx+(py-ay)*vy)/L2:0; t=Math.max(0,Math.min(1,t));
+    const c=Math.hypot(px-(ax+t*vx),py-(ay+t*vy));
+    if(c<best.cross) best={cross:c,along:ROUTE.cum[i]+t*(ROUTE.cum[i+1]-ROUTE.cum[i])};
+  }
+  return best;
+}
+const pace=()=> speeds.length<6 ? SPEED_FALLBACK
+  : Math.min(2.0,Math.max(0.6,[...speeds].sort((a,b)=>a-b)[Math.floor(speeds.length/2)]));
+
+/* ═══ CARTE ═══ */
+const baseLayer=()=>L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {maxZoom:19,attribution:'© OpenStreetMap'});
+function drawRoute(m){
+  L.polyline(ROUTE.line,{color:"#0d1116",weight:11,opacity:.5,lineJoin:"round"}).addTo(m);
+  L.polyline(ROUTE.line,{color:"#5db3ff",weight:6,opacity:.95,lineJoin:"round"}).addTo(m);
+  ROUTE.stops.forEach((s,i)=>{
+    L.marker([s.lat,s.lon],{icon:L.divIcon({className:"",iconSize:[32,32],iconAnchor:[16,16],html:
+      `<div style="width:32px;height:32px;border-radius:50%;background:#fff;color:#0d1116;
+        font:700 16px/32px -apple-system,sans-serif;text-align:center;
+        border:3px solid #5db3ff;box-shadow:0 2px 7px rgba(0,0,0,.55)">${i+1}</div>`})})
+      .addTo(m).bindPopup("<b>"+(i+1)+". "+s.name+"</b>");
+  });
+}
+function initMaps(){
+  if(typeof L==="undefined"){
+    document.body.innerHTML='<div class="fail"><h2>La carte n\'a pas pu se charger</h2>'+
+      '<p>Le fond de plan a besoin du réseau. Vérifie ta connexion, puis recharge la page.</p></div>';
+    return false;
+  }
+  planMap=L.map("mapPlan",{zoomControl:false});
+  baseLayer().addTo(planMap); drawRoute(planMap);
+  planMap.fitBounds(L.polyline(ROUTE.line).getBounds(),{padding:[26,26]});
+  map=L.map("map",{zoomControl:false});
+  baseLayer().addTo(map); drawRoute(map);
+  map.setView([ROUTE.stops[0].lat,ROUTE.stops[0].lon],17);
+  return true;
+}
+const moveMapTo=id=>{ document.getElementById(id).appendChild(document.getElementById("map"));
+  setTimeout(()=>map.invalidateSize(),110); };
+
+/* ═══ BOUSSOLE ═══ */
+function applyHeading(){
+  if(!meMarker) return;
+  const el=meMarker.getElement(); if(!el) return;
+  const wrap=el.querySelector(".me"), cone=el.querySelector(".me-cone");
+  if(!wrap||!cone) return;
+  if(heading==null){ wrap.classList.add("nohead"); }
+  else { wrap.classList.remove("nohead"); cone.style.transform="rotate("+heading+"deg)"; }
+}
+function onOrient(e){
+  let h=null;
+  if(typeof e.webkitCompassHeading==="number") h=e.webkitCompassHeading;      // iOS : cap magnétique direct
+  else if(e.absolute && typeof e.alpha==="number") h=(360-e.alpha)%360;
+  if(h!=null && isFinite(h)){ heading=h; applyHeading(); }
+}
+async function enableCompass(){
+  const box=$("#compBox"), btn=$("#btnComp");
+  try{
+    const D=window.DeviceOrientationEvent;
+    if(!D){ throw new Error("non disponible sur cet appareil"); }
+    if(typeof D.requestPermission==="function"){
+      const r=await D.requestPermission();
+      if(r!=="granted") throw new Error("autorisation refusée");
+    }
+    window.addEventListener("deviceorientation",onOrient,true);
+    window.addEventListener("deviceorientationabsolute",onOrient,true);
+    orientOn=true;
+    box.style.display="block";
+    box.textContent="Boussole active — le cône bleu montre la direction dans laquelle tu regardes.";
+    btn.style.display="none";
+  }catch(err){
+    box.style.display="block";
+    box.className="warnbox";
+    box.textContent="Boussole indisponible ("+err.message+"). Le parcours fonctionne quand même : "+
+      "tu verras ta position sur la carte, sans l'orientation.";
+    btn.style.display="none";
+  }
+}
+
+/* ═══ GPS ═══ */
+function startWatch(){
+  if(watchId!=null) return;
+  watchId=navigator.geolocation.watchPosition(onPos,onGeoErr,
+    {enableHighAccuracy:true,maximumAge:2000,timeout:20000});
+}
+function stopWatch(){ if(watchId!=null){ navigator.geolocation.clearWatch(watchId); watchId=null; } }
+function onGeoErr(e){
+  $("#preAcc").textContent="GPS refusé";
+  const h=$("#preHint"); h.style.display="block";
+  h.textContent="Le téléphone ne donne pas la position ("+e.message+"). Autorise la localisation pour ce site, puis recharge la page.";
+}
+function onPos(pos){
+  const c=pos.coords;
+  if(lastPos){
+    const dt=(pos.timestamp-lastPos.timestamp)/1000;
+    const dd=hav(lastPos.coords.latitude,lastPos.coords.longitude,c.latitude,c.longitude);
+    if(dt>1.5&&dt<30&&dd<60){ speeds.push(dd/dt); if(speeds.length>40) speeds.shift(); }
+  }
+  lastPos=pos;
+  $("#preAcc").textContent="GPS ±"+Math.round(c.accuracy)+" m";
+  if(!meMarker){
+    meHalo=L.circle([c.latitude,c.longitude],{radius:c.accuracy,color:"#5db3ff",weight:1,fillOpacity:.1}).addTo(map);
+    meMarker=L.marker([c.latitude,c.longitude],{zIndexOffset:1000,icon:L.divIcon({className:"",
+      iconSize:[78,78],iconAnchor:[39,39],
+      html:'<div class="me nohead"><div class="me-cone"></div><div class="me-dot"></div></div>'})}).addTo(map);
+    applyHeading();
+  }else{
+    meMarker.setLatLng([c.latitude,c.longitude]);
+    meHalo.setLatLng([c.latitude,c.longitude]).setRadius(c.accuracy);
+  }
+  map.panTo([c.latitude,c.longitude],{animate:true,duration:.6});
+
+  if(session && mode==="walk") session.samples.push({
+    sample_id:"s"+session.samples.length,timestamp:new Date(pos.timestamp).toISOString(),
+    latitude:c.latitude,longitude:c.longitude,horizontal_accuracy_m:Math.round(c.accuracy),
+    speed_mps:c.speed==null?null:+c.speed.toFixed(2),heading_deg:heading==null?null:Math.round(heading),
+    source_state:document.visibilityState==="visible"?"foreground":"background",
+    quality_flag:c.accuracy<=25?"ok":"low_accuracy"
+  });
+
+  if(mode==="pre") renderPre(c);
+  if(mode==="walk"){ renderWalk(c); renderOff(c); }
+}
+
+/* ═══ PRÉ-MARCHE ═══ */
+function renderPre(c){
+  const s=ROUTE.stops[0], d=hav(c.latitude,c.longitude,s.lat,s.lon);
+  $("#preDist").textContent=fmtD(d);
+  $("#preEta").textContent=fmtT(d/pace());
+  const far=d>NEAR_START_M, h=$("#preHint");
+  h.style.display=far?"block":"none";
+  if(far) h.innerHTML="Tu es à <b>"+fmtD(d)+"</b> du départ. Tu peux démarrer quand même — "+
+    "l'app te guide d'abord jusqu'au premier arrêt, sans compter ça comme un écart.";
+  $("#btnGo").textContent=far?"Go — guide-moi jusqu'au départ":"Go — je démarre";
+}
+
+/* ═══ MARCHE ═══ */
+function renderDots(){
+  const w=$("#dots"); w.innerHTML="";
+  ROUTE.stops.forEach((s,i)=>{
+    const d=document.createElement("div");
+    d.className="d"+(reached.includes(s.id)?" done":(i===targetIdx?" now":""));
+    w.appendChild(d);
+  });
+}
+function renderWalk(c){
+  if(targetIdx>=ROUTE.stops.length) return finish("route_complete");
+  const t=ROUTE.stops[targetIdx], pr=project(c.latitude,c.longitude);
+  const straight=hav(c.latitude,c.longitude,t.lat,t.lon);
+  const along=Math.max(straight,t.along-pr.along);
+  $("#wEyebrow").textContent=targetIdx===ROUTE.stops.length-1?"Dernier arrêt":"Prochain arrêt";
+  $("#wName").textContent=(targetIdx+1)+". "+t.name;
+  $("#wDist").textContent=fmtD(along);
+  $("#wEta").textContent=fmtT(along/pace());
+  $("#wLeft").textContent=fmtT((along+(ROUTE.total_d-t.along))/pace());
+  $("#btnPause").style.display = (t.pausable && reached.includes(t.id)) ? "block" : "none";
+
+  if(straight<=REVEAL_M && !reached.includes(t.id)){
+    reached.push(t.id);
+    $("#wHook").textContent=t.hook; $("#wHook").classList.remove("hidden");
+    pushEvent("poi_reached",t.name); renderDots();
+    if(t.pausable) $("#btnPause").style.display="block";
+    setTimeout(()=>{
+      if(reached.includes(ROUTE.stops[targetIdx]?.id)){
+        targetIdx++; $("#wHook").classList.add("hidden"); renderDots();
+        $("#btnPause").style.display="none";
+      }
+    }, t.pausable?9000:5000);
+  }
+}
+function renderOff(c){
+  if(!reached.includes(ROUTE.stops[0].id)){ offSince=null; return; }
+  const pr=project(c.latitude,c.longitude), box=$("#offRoute"), now=Date.now();
+  if(pr.cross>OFFROUTE_M){
+    if(offSince==null) offSince=now;
+    if(now-offSince>OFFROUTE_MS && !offShown){
+      offShown=true;
+      box.innerHTML='<div class="banner"><span>🧭</span><span>Tu explores — le parcours t\'attend. '+
+        'Le trait bleu est sur la carte, rejoins-le quand tu veux. Rien n\'est perdu.</span></div>';
+      pushEvent("off_route_shown","cross_track≈"+Math.round(pr.cross)+"m");
+    }
+  }else{ offSince=null; if(offShown){ offShown=false; box.innerHTML=""; pushEvent("off_route_cleared",null); } }
+}
+
+/* ═══ SESSION ═══ */
+function pushEvent(kind,note){
+  if(session) session.events.push({event_id:"e"+session.events.length,
+    timestamp:new Date().toISOString(),kind,note:note||null});
+}
+function startSession(){
+  const t0=Date.now(); runSince=t0; elapsedMs=0;
+  session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
+    route_id:ROUTE.route_id,route_version:ROUTE.route_version,
+    app_version:"jw-app-prototype-0.4",schema_version:"0.2",device_class:"ios",
+    started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
+    start_zone_generic:"Ottawa downtown",compass_enabled:orientOn,
+    samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
+  pushEvent("start","Go");
+  tick=setInterval(()=>{
+    if(mode==="walk") $("#chipTime").textContent=fmtT(walkedMs()/1000);
+    if(mode==="paused" && pauseSince) $("#pauseFor").textContent="en veille depuis "+fmtT((Date.now()-pauseSince)/1000);
+  },5000);
+  $("#chipTime").textContent="0 min";
+}
+function pauseWalk(){
+  elapsedMs=walkedMs(); runSince=null; pauseSince=Date.now();
+  mode="paused"; stopWatch();
+  pushEvent("pause",ROUTE.stops[Math.min(targetIdx,ROUTE.stops.length-1)].name);
+  $("#pauseWhere").textContent=ROUTE.stops[Math.min(targetIdx,ROUTE.stops.length-1)].name;
+  $("#pauseFor").textContent="en veille depuis 0 min";
+  show("scPause");
+}
+function resumeWalk(){
+  const d=Date.now()-pauseSince;
+  pushEvent("resume",Math.round(d/60000)+" min de veille");
+  pauseSince=null; runSince=Date.now(); mode="walk";
+  show("scWalk"); moveMapTo("mapHost"); startWatch();
+}
+function finish(reason){
+  if(mode==="done") return;
+  mode="done"; clearInterval(tick); stopWatch();
+  elapsedMs=walkedMs(); runSince=null;
+  session.ended_at=new Date().toISOString(); session.end_reason=reason;
+  session.walking_time_s=Math.round(elapsedMs/1000);
+  pushEvent("finish",reason);
+  $("#endSummary").textContent="Tu as marché "+fmtT(elapsedMs/1000)+" (hors pauses) et atteint "+
+    reached.length+" arrêt"+(reached.length>1?"s":"")+" sur "+ROUTE.stops.length+
+    ". Trois questions rapides, puis on enregistre.";
+  const f=$("#favOpts"); f.innerHTML="";
+  ROUTE.stops.forEach((s,i)=>{
+    const l=document.createElement("label"); l.className="opt"; l.dataset.v=s.id;
+    l.innerHTML="<span>"+(i+1)+". "+s.name+"</span>"; f.appendChild(l);
+  });
+  show("scEnd");
+}
+const show=id=>document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));
+
+/* ═══ DÉMARRAGE ═══ */
+document.addEventListener("DOMContentLoaded",()=>{
+  const cat=$("#catList");
+  CATALOGUE.forEach(c=>{
+    const b=document.createElement("button");
+    b.className="rcard"+(c.ready?"":" soon");
+    b.innerHTML='<div class="band'+(c.ready?"":" p")+'"><span>'+c.ville+'</span></div>'+
+      '<div class="body"><h3>'+c.nom+'</h3><div class="meta">'+c.meta+'</div>'+
+      '<span class="tag">'+(c.ready?"Disponible":"En préparation")+'</span></div>';
+    if(c.ready) b.onclick=()=>{ show("scPlan"); setTimeout(()=>planMap.invalidateSize(),110); };
+    else b.disabled=true;
+    cat.appendChild(b);
+  });
+
+  $("#planTitle").textContent=ROUTE.name;
+  $("#planLead").textContent=ROUTE.stops.length+" arrêts · "+(ROUTE.total_d/1000).toFixed(1)+
+    " km · environ "+fmtT(ROUTE.total_t)+" de marche, hors visites. Départ au Musée des beaux-arts, "+
+    "arrivée au marché By. Tu peux mettre le parcours en veille pour visiter le musée ou le Parlement.";
+  const ul=$("#stopList");
+  ROUTE.stops.forEach((s,i)=>{
+    const li=document.createElement("li");
+    li.innerHTML='<span class="n">'+(i+1)+'</span><span class="tx">'+s.name+
+      (s.pausable?'<span class="p">⏸ visite possible — mise en veille</span>':'')+'</span>'+
+      '<span class="m">'+(i===0?"départ":fmtD(s.leg_d))+'</span>';
+    ul.appendChild(li);
+  });
+  $("#preName").textContent="1. "+ROUTE.stops[0].name;
+
+  if(!initMaps()) return;
+
+  $("#btnStops").onclick=()=>show("scStops");
+  $("#btnBackPlan").onclick=()=>show("scPlan");
+  $("#btnPre").onclick=()=>{ mode="pre"; show("scPre"); startWatch(); setTimeout(()=>map.invalidateSize(),130); };
+  $("#btnComp").onclick=enableCompass;
+  $("#btnNav").onclick=()=>{ const s=ROUTE.stops[0];
+    window.open("https://maps.apple.com/?daddr="+s.lat+","+s.lon+"&dirflg=w","_blank"); };
+  $("#btnGo").onclick=()=>{
+    mode="walk"; startSession(); show("scWalk"); moveMapTo("mapHost"); renderDots();
+    if(lastPos){ renderWalk(lastPos.coords); renderOff(lastPos.coords); }
+  };
+  $("#btnPause").onclick=pauseWalk;
+  $("#btnResume").onclick=resumeWalk;
+  $("#btnFinish").onclick=()=>finish("user_finished");
+
+  document.addEventListener("click",e=>{
+    const o=e.target.closest(".opt"); if(!o) return;
+    [...o.parentElement.children].forEach(x=>x.classList.remove("sel"));
+    o.classList.add("sel");
+  });
+
+  $("#btnExport").onclick=()=>{
+    session.usage_feedback={
+      favorite_poi_id:$("#favOpts .opt.sel")?.dataset.v||null,
+      confusion_note:$("#confusion").value.trim()||null,
+      would_recommend:$("#recOpts .opt.sel")?.dataset.v||null};
+    const out={_meta:{tool:"JW prototype outil marcheur — Volet 2 · v0.4",
+        generated_at:new Date().toISOString(),
+        note:"Auto-test du propriétaire — José seul. Contenu narratif factice/minimal, jamais publié."},
+      WalkSession:{...session,samples:undefined,events:undefined,usage_feedback:undefined,
+        sample_count:session.samples.length},
+      LocationSample:session.samples,InteractionEvent:session.events,
+      UsageFeedback:session.usage_feedback};
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}));
+    a.download="JW_APP_PROTOTYPE_OTT_"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
+    a.click();
+    $("#btnExport").textContent="Enregistré ✓";
+  };
+});
+</script>
+</body>
+</html>
