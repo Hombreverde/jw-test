@@ -377,6 +377,7 @@ function onPos(pos){
     source_state:document.visibilityState==="visible"?"foreground":"background",
     quality_flag:c.accuracy<=25?"ok":"low_accuracy"
   });
+  if(mode==="walk") saveSession(false);
 
   if(mode==="pre") renderPre(c);
   if(mode==="walk"){ renderWalk(c); renderOff(c); }
@@ -442,16 +443,66 @@ function renderOff(c){
   }else{ offSince=null; if(offShown){ offShown=false; box.innerHTML=""; pushEvent("off_route_cleared",null); } }
 }
 
+/* ═══ FILET DE SÉCURITÉ — la marche survit à un onglet déchargé ═══
+   Écriture seule. Aucune reprise automatique : un défaut ici ne peut pas
+   perturber la marche en cours, il ne coûterait qu'une récupération manquée. */
+const SAVE_KEY="jw_walk_inprogress";
+let lastSave=0;
+function saveSession(force){
+  if(!session) return;
+  const now=Date.now();
+  if(!force && now-lastSave<15000) return;   // ~500 Ko par ecriture sur une marche complete
+  lastSave=now;
+  try{
+    localStorage.setItem(SAVE_KEY,JSON.stringify({
+      session,targetIdx,reached,elapsedMs:walkedMs(),savedAt:now,route_id:ROUTE.route_id}));
+  }catch(e){/* quota ou mode privé : on continue de marcher */}
+}
+function clearSaved(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+function offerRecovery(){
+  let raw=null; try{ raw=localStorage.getItem(SAVE_KEY); }catch(e){ return; }
+  if(!raw) return;
+  let d=null; try{ d=JSON.parse(raw); }catch(e){ clearSaved(); return; }
+  if(!d||!d.session||!(d.session.samples||[]).length){ clearSaved(); return; }
+  const host=document.querySelector("#scCat .scroll"); if(!host) return;
+  const box=document.createElement("div"); box.className="warnbox";
+  box.innerHTML="<b>Une marche non terminée a été retrouvée.</b><br>"+
+    d.session.samples.length+" points enregistrés · "+(d.reached||[]).length+" arrêt(s) atteint(s)"+
+    " · "+fmtT((d.elapsedMs||0)/1000)+" de marche.";
+  const b=document.createElement("button"); b.className="ghost";
+  b.textContent="Récupérer et enregistrer cette marche";
+  b.onclick=()=>recoverSession(d);
+  host.insertBefore(box,host.firstChild);
+  host.insertBefore(b,box.nextSibling);
+}
+function recoverSession(d){
+  session=d.session; reached=d.reached||[]; targetIdx=d.targetIdx||0;
+  elapsedMs=d.elapsedMs||0; runSince=null; mode="done";
+  session.end_reason="recovered_after_interruption";
+  session.ended_at=new Date(d.savedAt||Date.now()).toISOString();
+  session.walking_time_s=Math.round(elapsedMs/1000);
+  $("#endSummary").textContent="Marche récupérée après interruption : "+fmtT(elapsedMs/1000)+
+    " de marche et "+reached.length+" arrêt"+(reached.length>1?"s":"")+" atteint"+
+    (reached.length>1?"s":"")+" sur "+ROUTE.stops.length+
+    ". Rien n'est perdu — réponds aux questions si tu peux, puis enregistre.";
+  const f=$("#favOpts"); f.innerHTML="";
+  ROUTE.stops.forEach((s,i)=>{
+    const l=document.createElement("label"); l.className="opt"; l.dataset.v=s.id;
+    l.innerHTML="<span>"+(i+1)+". "+s.name+"</span>"; f.appendChild(l);
+  });
+  show("scEnd");
+}
+
 /* ═══ SESSION ═══ */
 function pushEvent(kind,note){
-  if(session) session.events.push({event_id:"e"+session.events.length,
-    timestamp:new Date().toISOString(),kind,note:note||null});
+  if(session){ session.events.push({event_id:"e"+session.events.length,
+    timestamp:new Date().toISOString(),kind,note:note||null}); saveSession(true); }
 }
 function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.4",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.4.1",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Ottawa downtown",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -483,6 +534,7 @@ function finish(reason){
   session.ended_at=new Date().toISOString(); session.end_reason=reason;
   session.walking_time_s=Math.round(elapsedMs/1000);
   pushEvent("finish",reason);
+  saveSession(true);          // protégée jusqu'à l'export réussi
   $("#endSummary").textContent="Tu as marché "+fmtT(elapsedMs/1000)+" (hors pauses) et atteint "+
     reached.length+" arrêt"+(reached.length>1?"s":"")+" sur "+ROUTE.stops.length+
     ". Trois questions rapides, puis on enregistre.";
@@ -524,6 +576,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#preName").textContent="1. "+ROUTE.stops[0].name;
 
   if(!initMaps()) return;
+  offerRecovery();
 
   $("#btnStops").onclick=()=>show("scStops");
   $("#btnBackPlan").onclick=()=>show("scPlan");
@@ -561,6 +614,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}));
     a.download="JW_APP_PROTOTYPE_OTT_"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
     a.click();
+    clearSaved();                       // le filet ne sert plus, la marche est sur le telephone
     $("#btnExport").textContent="Enregistré ✓";
   };
 });
