@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<title>Journey Walker — Ottawa (prototype v0.5)</title>
+<title>Journey Walker — Ottawa (prototype v0.5.1)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root{
@@ -246,7 +246,11 @@ const CATALOGUE = [{"ville":"Ottawa · Canada","nom":"Du musée au marché By","
    NEAR_TWIN_M protège l'avance auto des arrêts jumeaux (musée aller/retour) ;
    DIST_STEP : le compteur affiché ne bouge que par pas francs, jamais en tremblant. */
 const REVEAL_M=50, OFFROUTE_M=45, OFFROUTE_MS=20000, NEAR_START_M=75, SPEED_FALLBACK=1.25,
-      NEAR_TWIN_M=2*REVEAL_M, DIST_STEP=10;
+      NEAR_TWIN_M=2*REVEAL_M, DIST_STEP=10, ALONG_M=40;
+/* Le point que le marcheur doit rejoindre est le DÉBUT DU TRACÉ, sur la rue —
+   jamais l'ancre du POI (leçon 09/08 : l'ancre du musée est DANS le bâtiment,
+   José a dû entrer sans billet pour faire tomber le compteur à zéro). */
+const START={lat:ROUTE.line[0][0],lon:ROUTE.line[0][1]};
 
 /* ═══ ÉTAT ═══ */
 let mode="cat", map=null, planMap=null, watchId=null, orientOn=false, heading=null;
@@ -292,13 +296,18 @@ function drawRoute(m){
   L.polyline(ROUTE.line,{color:"#0d1116",weight:11,opacity:.5,lineJoin:"round"}).addTo(m);
   L.polyline(ROUTE.line,{color:"#5db3ff",weight:6,opacity:.95,lineJoin:"round"}).addTo(m);
   ROUTE.stops.forEach((s,i)=>{
-    const ring=i===0?"#4ec98a":"#5db3ff", sz=i===0?38:32;   // le départ se voit de loin
-    L.marker([s.lat,s.lon],{icon:L.divIcon({className:"",iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],html:
-      `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:#fff;color:#0d1116;
-        font:700 ${i===0?18:16}px/${sz}px -apple-system,sans-serif;text-align:center;
-        border:3px solid ${ring};box-shadow:0 2px 7px rgba(0,0,0,.55)">${i+1}</div>`})})
+    L.marker([s.lat,s.lon],{icon:L.divIcon({className:"",iconSize:[32,32],iconAnchor:[16,16],html:
+      `<div style="width:32px;height:32px;border-radius:50%;background:#fff;color:#0d1116;
+        font:700 16px/32px -apple-system,sans-serif;text-align:center;
+        border:3px solid #5db3ff;box-shadow:0 2px 7px rgba(0,0,0,.55)">${i+1}</div>`})})
       .addTo(m).bindPopup("<b>"+(i+1)+". "+s.name+"</b>");
   });
+  // le vrai point de rendez-vous : début du tracé, sur le trottoir — se voit de loin
+  L.marker([START.lat,START.lon],{zIndexOffset:900,icon:L.divIcon({className:"",iconSize:[40,40],iconAnchor:[20,20],html:
+    `<div style="width:40px;height:40px;border-radius:50%;background:#4ec98a;color:#08121c;
+      font:700 19px/40px -apple-system,sans-serif;text-align:center;
+      border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.6)">D</div>`})})
+    .addTo(m).bindPopup("<b>Départ du parcours</b> — sur le trottoir, devant le musée");
 }
 function initMaps(){
   if(typeof L==="undefined"){
@@ -390,8 +399,7 @@ function onPos(pos){
   if(mode==="pre"){
     // montrer TOUJOURS le marcheur ET le départ sur le même écran — leçon du 09/08 :
     // suivre seul un compteur de mètres fait tourner en rond
-    const s0=ROUTE.stops[0];
-    map.fitBounds([[c.latitude,c.longitude],[s0.lat,s0.lon]],{padding:[52,52],maxZoom:18,animate:false});
+    map.fitBounds([[c.latitude,c.longitude],[START.lat,START.lon]],{padding:[52,52],maxZoom:18,animate:false});
   }else{
     map.panTo([c.latitude,c.longitude],{animate:true,duration:.6});
   }
@@ -411,14 +419,14 @@ function onPos(pos){
 
 /* ═══ PRÉ-MARCHE ═══ */
 function renderPre(c){
-  const s=ROUTE.stops[0], d=hav(c.latitude,c.longitude,s.lat,s.lon);
+  const d=hav(c.latitude,c.longitude,START.lat,START.lon);
   dispPre=smoothD(dispPre,d);
   const here=d<=REVEAL_M;
   $("#preDist").textContent=here?"tu y es ✓":fmtD(dispPre);
   $("#preEta").textContent=here?"—":fmtT(dispPre/pace());
   const far=d>NEAR_START_M, h=$("#preHint");
   h.style.display=far?"block":"none";
-  if(far){ h.className="warnbox"; h.innerHTML="Tu es à <b>"+fmtD(dispPre)+"</b> du départ (pastille verte « 1 » sur la carte). "+
+  if(far){ h.className="warnbox"; h.innerHTML="Tu es à <b>"+fmtD(dispPre)+"</b> du départ (pastille verte « D » sur la carte). "+
     "Tu peux démarrer quand même — l'app te guide d'abord jusqu'au premier arrêt, sans compter ça comme un écart."; }
   const cb=$("#compBox");
   if(here && cb.style.display!=="block"){
@@ -442,13 +450,18 @@ function renderDots(){
    les arrêts intermédiaires sont marqués « passés » et l'app avance seule.
    Garde NEAR_TWIN_M : un arrêt jumeau d'un arrêt déjà atteint (musée aller/retour)
    ne peut pas déclencher l'avance auto — sinon rester devant le musée sauterait la basilique. */
-function autoAdvance(c){
+/* Un arrêt est atteint près de son ancre OU en croisant sa position le long du tracé
+   (« passé devant ») — une ancre posée dans un bâtiment ne bloque plus personne. */
+function nearStop(c,s,pr){
+  if(hav(c.latitude,c.longitude,s.lat,s.lon)<=REVEAL_M) return true;
+  return pr.cross<=OFFROUTE_M && Math.abs(pr.along-s.along)<=ALONG_M;
+}
+function autoAdvance(c,pr){
   if(targetIdx>=ROUTE.stops.length) return;
-  const t=ROUTE.stops[targetIdx];
-  if(hav(c.latitude,c.longitude,t.lat,t.lon)<=REVEAL_M) return;   // l'arrêt visé est là : voie normale
+  if(nearStop(c,ROUTE.stops[targetIdx],pr)) return;   // l'arrêt visé est là : voie normale
   for(let j=targetIdx+1;j<ROUTE.stops.length;j++){
     const s=ROUTE.stops[j];
-    if(hav(c.latitude,c.longitude,s.lat,s.lon)>REVEAL_M) continue;
+    if(!nearStop(c,s,pr)) continue;
     const twin=reached.some(id=>{const r=ROUTE.stops.find(x=>x.id===id);
       return r && hav(r.lat,r.lon,s.lat,s.lon)<=NEAR_TWIN_M;});
     if(twin) continue;
@@ -464,19 +477,20 @@ function autoAdvance(c){
 }
 function renderWalk(c){
   if(targetIdx>=ROUTE.stops.length) return finish("route_complete");
-  autoAdvance(c);
-  const t=ROUTE.stops[targetIdx], pr=project(c.latitude,c.longitude);
+  const pr=project(c.latitude,c.longitude);
+  autoAdvance(c,pr);
+  const t=ROUTE.stops[targetIdx];
   const straight=hav(c.latitude,c.longitude,t.lat,t.lon);
   const along=Math.max(straight,t.along-pr.along);
   dispDist=smoothD(dispDist,along);
   $("#wEyebrow").textContent=targetIdx===ROUTE.stops.length-1?"Dernier arrêt":"Prochain arrêt";
   $("#wName").textContent=(targetIdx+1)+". "+t.name;
-  $("#wDist").textContent=straight<=REVEAL_M?"tu y es ✓":fmtD(dispDist);
+  $("#wDist").textContent=nearStop(c,t,pr)?"tu y es ✓":fmtD(dispDist);
   $("#wEta").textContent=fmtT(dispDist/pace());
   $("#wLeft").textContent=fmtT((dispDist+(ROUTE.total_d-t.along))/pace());
   $("#btnPause").style.display = (t.pausable && reached.includes(t.id)) ? "block" : "none";
 
-  if(straight<=REVEAL_M && !reached.includes(t.id)){
+  if(nearStop(c,t,pr) && !reached.includes(t.id)){
     reached.push(t.id);
     $("#wHook").textContent=t.hook; $("#wHook").classList.remove("hidden");
     pushEvent("poi_reached",t.name); renderDots();
@@ -563,7 +577,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.5",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.5.1",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Ottawa downtown",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -645,8 +659,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#btnBackPlan").onclick=()=>show("scPlan");
   $("#btnPre").onclick=()=>{ mode="pre"; show("scPre"); startWatch(); setTimeout(()=>map.invalidateSize(),130); };
   $("#btnComp").onclick=enableCompass;
-  $("#btnNav").onclick=()=>{ const s=ROUTE.stops[0];
-    window.open("https://maps.apple.com/?daddr="+s.lat+","+s.lon+"&dirflg=w","_blank"); };
+  $("#btnNav").onclick=()=>{
+    window.open("https://maps.apple.com/?daddr="+START.lat+","+START.lon+"&dirflg=w","_blank"); };
   $("#btnGo").onclick=()=>{
     mode="walk"; targetIdx=0; reached=[]; skipped=[]; dispDist=null;
     startSession(); show("scWalk"); moveMapTo("mapHost"); renderDots();
@@ -680,7 +694,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       favorite_poi_id:$("#favOpts .opt.sel")?.dataset.v||null,
       confusion_note:$("#confusion").value.trim()||null,
       would_recommend:$("#recOpts .opt.sel")?.dataset.v||null};
-    const out={_meta:{tool:"JW prototype outil marcheur — Volet 2 · v0.5",
+    const out={_meta:{tool:"JW prototype outil marcheur — Volet 2 · v0.5.1",
         generated_at:new Date().toISOString(),
         note:"Auto-test du propriétaire — José seul. Contenu narratif factice/minimal, jamais publié."},
       WalkSession:{...session,samples:undefined,events:undefined,usage_feedback:undefined,
