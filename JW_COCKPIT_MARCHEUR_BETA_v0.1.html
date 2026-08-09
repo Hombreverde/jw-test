@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>JW — Cockpit marcheur (prototype v0.1)</title>
+<link rel="apple-touch-icon" href="jw-icon-180.png">
+<link rel="icon" type="image/png" href="jw-icon-180.png">
+<meta name="theme-color" content="#12161c">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root{
+    --bg:#12161c; --card:#1b212a; --line:#2c3542; --ink:#f2f5f9; --dim:#a8b3c2;
+    --acc:#5db3ff; --ok:#4ec98a; --warn:#efb54b; --star:#f5c84b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);
+    font:400 18px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    overscroll-behavior:none;-webkit-text-size-adjust:100%}
+  .screen{display:none;height:100dvh;flex-direction:column}
+  .screen.on{display:flex}
+  header{padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);background:var(--card)}
+  header h1{margin:0;font-size:17px;font-weight:600;flex:1;line-height:1.25}
+  .chip{font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;background:#242d39;
+    border:1px solid var(--line);color:var(--dim);padding:6px 11px;border-radius:999px;white-space:nowrap}
+  .chip.live{color:var(--ok);border-color:#2f5c46}
+  .wipe{background:none;border:0;color:#e08a8a;font:600 14px/1 inherit;padding:8px 4px;width:auto;min-height:0}
+  .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 0;flex:1}
+  .panel{background:var(--card);border-top:1px solid var(--line);padding:12px 16px calc(env(safe-area-inset-bottom) + 12px)}
+  .maprow{position:relative;flex:1;display:flex;min-height:170px}
+  #map{flex:1;background:#0d1116}
+  .leaflet-container{background:#0d1116;font:inherit}
+  .leaflet-control-attribution{font-size:10px;background:rgba(20,25,32,.82);color:#8794a5}
+  .leaflet-control-attribution a{color:#8794a5}
+
+  .me{width:78px;height:78px;position:relative;pointer-events:none}
+  .me-cone{position:absolute;inset:0;transition:transform .3s ease-out}
+  .me-cone::before{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
+    border-left:22px solid transparent;border-right:22px solid transparent;
+    border-bottom:30px solid rgba(93,179,255,.5);filter:drop-shadow(0 0 3px rgba(0,0,0,.6))}
+  .me-dot{position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;
+    border-radius:50%;background:var(--acc);border:4px solid #fff;
+    box-shadow:0 0 0 2.5px rgba(0,0,0,.6),0 3px 10px rgba(0,0,0,.55)}
+  .me.nohead .me-cone{display:none}
+
+  h2.big{margin:0 0 10px;font-size:23px;font-weight:650;line-height:1.25}
+  .eyebrow{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 4px}
+  .lead{font-size:17px;color:var(--dim);margin:0 0 14px;line-height:1.5}
+  .okbox{background:#16281f;border:1px solid #2c5a41;border-radius:12px;padding:12px 14px;font-size:16px;line-height:1.5;margin:0 0 14px}
+  .warnbox{background:#2a2519;border:1px solid #5b4a22;border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.5;margin:0 0 14px}
+  .codebox{font:700 26px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.06em;text-align:center;
+    background:#161c24;border:1.5px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px;color:var(--acc)}
+
+  button{width:100%;min-height:58px;border:0;border-radius:14px;font:600 19px/1.2 inherit;
+    color:#08121c;background:var(--acc);cursor:pointer;padding:0 16px}
+  button.ghost{background:transparent;color:var(--acc);border:1.5px solid #33465c;min-height:52px;font-size:17px}
+  button.stop{background:#3a2b30;color:#ffb3b3;border:1.5px solid #5c3a42}
+  button.warn{background:var(--warn);color:#241a05}
+  button.star{background:var(--star);color:#241a05;min-height:64px;font-size:20px}
+  button+button{margin-top:9px}
+  .row{display:flex;gap:9px;margin-top:9px}
+  .row button{flex:1;margin-top:0}
+  button.mini{min-height:48px;font-size:16px}
+
+  textarea,input[type=text]{width:100%;background:#161c24;border:1.5px solid var(--line);border-radius:12px;
+    color:var(--ink);font:inherit;font-size:16px;padding:12px}
+  textarea{min-height:80px;resize:vertical}
+  .dicte{font-size:13px;color:var(--dim);margin:6px 0 14px}
+  .opts{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+  .opt{display:flex;align-items:center;gap:11px;padding:14px;background:#161c24;border:1.5px solid var(--line);
+    border-radius:12px;font-size:17px;cursor:pointer}
+  .opt.sel{border-color:var(--acc);background:#16232f}
+  .moment{background:#161c24;border:1.5px solid var(--line);border-radius:14px;padding:13px 15px;margin:0 0 14px}
+  .moment .k{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+  .moment .t{font-size:18px;font-weight:650;margin-top:3px;line-height:1.35}
+  .count{font-size:14px;color:var(--dim);margin:0 0 8px;font-variant-numeric:tabular-nums}
+  .pausewrap{flex:1;display:grid;place-items:center;padding:24px;text-align:center}
+  .pausewrap .big{font-size:26px;margin-bottom:10px}
+  .spin{flex:1;display:grid;place-items:center;text-align:center;padding:24px;color:var(--dim);font-size:17px;line-height:1.6}
+  .note{font-size:14px;color:var(--dim);line-height:1.5;margin:14px 0}
+  .fail{padding:26px 18px;text-align:center;color:var(--dim);font-size:16px;line-height:1.55}
+</style>
+</head>
+<body>
+
+<!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
+<section id="scNotice" class="screen on">
+  <header><h1>Journey Walker — Cockpit marcheur</h1></header>
+  <div class="scroll">
+    <p class="eyebrow">Avant de marcher — la notice, en clair</p>
+    <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
+    <div class="okbox">
+      • La trace GPS ne contient <b>ni ton nom, ni ton téléphone, ni ton compte</b> — seulement un
+        code de session au hasard.<br><br>
+      • L'enregistrement démarre au bouton <b>Départ</b> et s'arrête au bouton <b>Arrivée</b>.
+        Jamais avant, jamais après, jamais en arrière-plan.<br><br>
+      • À la fin, tu choisis : <b>envoyer, garder pour toi, ou tout effacer sur-le-champ</b> —
+        sans te justifier. Le bouton « Tout effacer » est aussi disponible pendant la marche.<br><br>
+      • Ce qui est envoyé est supprimé <b>dès que les circuits sont agrégés</b>, au plus tard
+        <b>90 jours</b> après la marche.
+    </div>
+    <p class="note">Ta mission : faire découvrir ton quartier à quelqu'un qui vient le visiter.
+      Tu choisis ton parcours — l'app se tait et observe.</p>
+  </div>
+  <div class="panel"><button id="btnAccept">J'ai lu — j'accepte</button></div>
+</section>
+
+<!-- ═══ 2. PRÉPARATION ═══ -->
+<section id="scPrep" class="screen">
+  <header><h1>Préparer la marche</h1></header>
+  <div class="scroll">
+    <p class="eyebrow">Ton code de session — rien d'autre ne t'identifie</p>
+    <div class="codebox" id="sessCode">JW-OTT-····</div>
+    <p class="eyebrow">Ta mission, en une ligne (facultatif)</p>
+    <input type="text" id="missionNote" placeholder="ex. : mon quartier, côté marché">
+    <p class="dicte">🎙 Tu peux dicter : appuie sur le micro du clavier.</p>
+    <div class="warnbox"><b>Consigne de départ :</b> appuie sur <b>Départ</b> une fois dans la rue —
+      au coin d'une place, devant un commerce, à la sortie du métro. <b>Jamais devant ta porte.</b>
+      Même chose pour Arrivée.</div>
+    <div id="compBox" class="okbox" style="display:none"></div>
+    <button id="btnComp" class="ghost">Activer la boussole</button>
+  </div>
+  <div class="panel"><button id="btnGo">Départ — j'enregistre</button></div>
+</section>
+
+<!-- ═══ 3. MARCHE — l'app se tait ═══ -->
+<section id="scWalk" class="screen">
+  <header><h1>Marche en cours</h1><span class="chip live" id="chipTime">0 min</span>
+    <button class="wipe" id="btnWipeWalk">Tout effacer</button></header>
+  <div class="maprow"><div id="mapHost" style="flex:1;display:flex"></div></div>
+  <div class="panel">
+    <button id="btnStar" class="star">⭐ Ici, quelque chose</button>
+    <div class="row">
+      <button id="btnPause" class="warn mini">Pause</button>
+      <button id="btnArrive" class="mini">Arrivée</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 4. PAUSE ═══ -->
+<section id="scPause" class="screen">
+  <header><h1>Marche en pause</h1></header>
+  <div class="pausewrap"><div>
+    <p class="big">⏸</p>
+    <p class="lead">Le GPS ne t'enregistre plus.<br>Reprends quand tu veux — rien n'est perdu.</p>
+    <p class="chip" id="pauseFor">en pause depuis 0 min</p>
+  </div></div>
+  <div class="panel"><button id="btnResume">Reprendre la marche</button></div>
+</section>
+
+<!-- ═══ 5. ANALYSE ═══ -->
+<section id="scAnalyse" class="screen">
+  <header><h1>Un instant…</h1></header>
+  <div class="spin" id="spinTxt">Je compare ton chemin avec l'itinéraire<br>qu'une carte aurait proposé…</div>
+</section>
+
+<!-- ═══ 6. DÉBRIEF ═══ -->
+<section id="scDebrief" class="screen">
+  <header><h1>Ton chemin, tes mots</h1></header>
+  <div class="maprow" style="flex:0 0 34dvh"><div id="mapDebrief" style="flex:1;display:flex"></div></div>
+  <div class="scroll">
+    <p class="count" id="qCount">—</p>
+    <div class="moment"><div class="k" id="mKind">—</div><div class="t" id="mQuestion">—</div></div>
+    <div class="opts" id="mOpts"></div>
+    <div id="mExtra" style="display:none">
+      <input type="text" id="mExtraField" placeholder="">
+      <p class="dicte">🎙 Tu peux dicter : appuie sur le micro du clavier.</p>
+    </div>
+  </div>
+  <div class="panel"><div class="row" style="margin-top:0">
+    <button id="btnQSkip" class="ghost mini">Passer</button>
+    <button id="btnQNext" class="mini">Continuer</button>
+  </div></div>
+</section>
+
+<!-- ═══ 7. FINAL ═══ -->
+<section id="scFinal" class="screen">
+  <header><h1>Dernière question</h1></header>
+  <div class="scroll">
+    <h2 class="big">Qu'est-ce que les visiteurs louperaient sans toi ?</h2>
+    <textarea id="closingNote" placeholder="Facultatif — une phrase suffit."></textarea>
+    <p class="dicte">🎙 Tu peux dicter : appuie sur le micro du clavier.</p>
+    <p class="eyebrow" style="margin-top:14px">Ta marche t'appartient — choisis :</p>
+  </div>
+  <div class="panel">
+    <button id="btnSend">Enregistrer la marche</button>
+    <button id="btnKeep" class="ghost">Garder pour moi (fichier local seulement)</button>
+    <button id="btnWipeEnd" class="stop">Tout effacer maintenant</button>
+  </div>
+</section>
+
+<!-- ═══ 8. FIN ═══ -->
+<section id="scDone" class="screen">
+  <header><h1>Merci</h1></header>
+  <div class="scroll"><p class="lead" id="doneTxt">—</p></div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
+const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
+const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
+const APP_VERSION="jw-cockpit-marcheur-0.1", SAVE_KEY="jw_cockpit_inprogress";
+
+/* ═══ ÉTAT ═══ */
+let mode="notice", map=null, dMap=null, watchId=null, orientOn=false, heading=null;
+let meMarker=null, meHalo=null, lastPos=null, tracLine=null;
+let session=null, tick=null, elapsedMs=0, runSince=null, pauseSince=null, lastSave=0;
+let moments=[], qIdx=0, observations=[];
+
+const $=s=>document.querySelector(s);
+const rad=d=>d*Math.PI/180;
+function hav(a,o,b,p){const R=6371000,dp=rad(b-a),dl=rad(p-o);
+  const x=Math.sin(dp/2)**2+Math.cos(rad(a))*Math.cos(rad(b))*Math.sin(dl/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));}
+const fmtT=s=>{if(!isFinite(s)||s<0)return"—";const m=Math.round(s/60);
+  return m<1?"moins d'1 min":m<60?m+" min":Math.floor(m/60)+" h "+String(m%60).padStart(2,"0");};
+function walkedMs(){return elapsedMs+(runSince?Date.now()-runSince:0);}
+const show=id=>document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));
+const newCode=()=>{const A="ACDEFHJKLMNPRTUVWXY34679";let c="";
+  for(let i=0;i<4;i++)c+=A[Math.floor(Math.random()*A.length)];return"JW-OTT-"+c;};
+
+/* projection d'un point sur une polyligne [[lat,lon],…] → {cross, along} */
+function projectOn(line,cum,lat,lon){
+  let best={cross:Infinity,along:0};
+  const ky=111320,kx=111320*Math.cos(rad(lat));
+  for(let i=0;i<line.length-1;i++){
+    const [alat,alon]=line[i],[blat,blon]=line[i+1];
+    const ax=alon*kx,ay=alat*ky,bx=blon*kx,by=blat*ky,px=lon*kx,py=lat*ky;
+    const vx=bx-ax,vy=by-ay,L2=vx*vx+vy*vy;
+    let t=L2?((px-ax)*vx+(py-ay)*vy)/L2:0;t=Math.max(0,Math.min(1,t));
+    const c=Math.hypot(px-(ax+t*vx),py-(ay+t*vy));
+    if(c<best.cross)best={cross:c,along:cum[i]+t*(cum[i+1]-cum[i])};
+  }
+  return best;
+}
+function cumOf(line){const c=[0];for(let i=1;i<line.length;i++)
+  c.push(c[i-1]+hav(line[i-1][0],line[i-1][1],line[i][0],line[i][1]));return c;}
+
+/* ═══ CARTE ═══ */
+function initMap(){
+  if(typeof L==="undefined"){document.body.innerHTML=
+    '<div class="fail"><h2>La carte n\'a pas pu se charger</h2><p>Vérifie ta connexion puis recharge la page.</p></div>';
+    return false;}
+  map=L.map(document.createElement("div"),{zoomControl:false});
+  map.getContainer().id="map";map.getContainer().style.cssText="flex:1;background:#0d1116";
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  map.setView([45.4295,-75.6979],16);
+  return true;
+}
+const moveMapTo=hostId=>{document.getElementById(hostId).appendChild(map.getContainer());
+  setTimeout(()=>map.invalidateSize(),120);};
+
+/* ═══ BOUSSOLE (reprise v0.5.1) ═══ */
+function applyHeading(){if(!meMarker)return;const el=meMarker.getElement();if(!el)return;
+  const w=el.querySelector(".me"),c=el.querySelector(".me-cone");if(!w||!c)return;
+  if(heading==null)w.classList.add("nohead");
+  else{w.classList.remove("nohead");c.style.transform="rotate("+heading+"deg)";}}
+function onOrient(e){let h=null;
+  if(typeof e.webkitCompassHeading==="number")h=e.webkitCompassHeading;
+  else if(e.absolute&&typeof e.alpha==="number")h=(360-e.alpha)%360;
+  if(h!=null&&isFinite(h)){heading=h;applyHeading();}}
+async function enableCompass(){
+  const box=$("#compBox"),btn=$("#btnComp");
+  try{const D=window.DeviceOrientationEvent;
+    if(!D)throw new Error("non disponible");
+    if(typeof D.requestPermission==="function"){
+      const r=await D.requestPermission();if(r!=="granted")throw new Error("refusée");}
+    window.addEventListener("deviceorientation",onOrient,true);
+    window.addEventListener("deviceorientationabsolute",onOrient,true);
+    orientOn=true;box.style.display="block";
+    box.textContent="Boussole active — le cône bleu montre où tu regardes.";btn.style.display="none";
+  }catch(err){box.style.display="block";box.className="warnbox";
+    box.textContent="Boussole indisponible ("+err.message+") — la marche fonctionne quand même.";
+    btn.style.display="none";}
+}
+
+/* ═══ GPS ═══ */
+function startWatch(){if(watchId==null)
+  watchId=navigator.geolocation.watchPosition(onPos,onGeoErr,
+    {enableHighAccuracy:true,maximumAge:2000,timeout:20000});}
+function stopWatch(){if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null;}}
+function onGeoErr(e){alert("Le téléphone ne donne pas la position ("+e.message+"). Autorise la localisation pour ce site, puis recharge.");}
+function onPos(pos){
+  const c=pos.coords;lastPos=pos;
+  if(!meMarker){
+    meHalo=L.circle([c.latitude,c.longitude],{radius:c.accuracy,color:"#5db3ff",weight:1,fillOpacity:.1}).addTo(map);
+    meMarker=L.marker([c.latitude,c.longitude],{zIndexOffset:1000,icon:L.divIcon({className:"",
+      iconSize:[78,78],iconAnchor:[39,39],
+      html:'<div class="me nohead"><div class="me-cone"></div><div class="me-dot"></div></div>'})}).addTo(map);
+    applyHeading();
+  }else{meMarker.setLatLng([c.latitude,c.longitude]);
+    meHalo.setLatLng([c.latitude,c.longitude]).setRadius(c.accuracy);}
+  map.panTo([c.latitude,c.longitude],{animate:true,duration:.6});
+  if(mode!=="walk"||!session)return;
+  session.samples.push({sample_id:"s"+session.samples.length,
+    timestamp:new Date(pos.timestamp).toISOString(),
+    latitude:c.latitude,longitude:c.longitude,horizontal_accuracy_m:Math.round(c.accuracy),
+    speed_mps:c.speed==null?null:+c.speed.toFixed(2),heading_deg:heading==null?null:Math.round(heading),
+    source_state:document.visibilityState==="visible"?"foreground":"background",
+    quality_flag:c.accuracy<=25?"ok":"low_accuracy"});
+  if(tracLine)tracLine.addLatLng([c.latitude,c.longitude]);
+  saveLocal(false);
+}
+
+/* ═══ FILET (écriture seule, reprise v0.5.1) ═══ */
+function saveLocal(force){
+  if(!session)return;const now=Date.now();
+  if(!force&&now-lastSave<15000)return;lastSave=now;
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify({session,observations,elapsedMs:walkedMs(),savedAt:now}));}
+  catch(e){}
+}
+function clearLocal(){try{localStorage.removeItem(SAVE_KEY);}catch(e){}}
+function offerRecovery(){
+  let raw=null;try{raw=localStorage.getItem(SAVE_KEY);}catch(e){return;}
+  if(!raw)return;let d=null;try{d=JSON.parse(raw);}catch(e){clearLocal();return;}
+  if(!d||!d.session||!(d.session.samples||[]).length){clearLocal();return;}
+  const host=document.querySelector("#scNotice .scroll");if(!host)return;
+  const box=document.createElement("div");box.className="warnbox";
+  box.innerHTML="<b>Une marche non terminée a été retrouvée</b> — "+d.session.samples.length+
+    " points, "+fmtT((d.elapsedMs||0)/1000)+".";
+  const b=document.createElement("button");b.className="ghost";b.textContent="Récupérer et enregistrer";
+  b.onclick=()=>{d.session.end_reason="recovered_after_interruption";
+    d.session.ended_at=new Date(d.savedAt||Date.now()).toISOString();
+    d.session.walking_time_s=Math.round((d.elapsedMs||0)/1000);
+    exportJSON(d.session,d.observations||[]);};
+  host.insertBefore(box,host.firstChild);host.insertBefore(b,box.nextSibling);
+}
+
+/* ═══ SESSION ═══ */
+function pushEvent(kind,note){if(session){session.events.push({event_id:"e"+session.events.length,
+  timestamp:new Date().toISOString(),kind,note:note||null});saveLocal(true);}}
+function startSession(){
+  const t0=Date.now();runSince=t0;elapsedMs=0;
+  session={session_id:$("#sessCode").textContent,consent_ref:"OWNER_SELF_TEST",
+    walk_kind:"free_resident_walk",app_version:APP_VERSION,schema_version:"0.2+fo0.3",
+    device_class:"ios",started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
+    start_zone_generic:"Ottawa downtown",compass_enabled:orientOn,
+    mission_note:$("#missionNote").value.trim()||null,closing_note:null,
+    conventional_ref:null,samples:[],events:[],stars:[]};
+  pushEvent("start","Départ marcheur");
+  tick=setInterval(()=>{
+    if(mode==="walk")$("#chipTime").textContent=fmtT(walkedMs()/1000);
+    if(mode==="paused"&&pauseSince)$("#pauseFor").textContent="en pause depuis "+fmtT((Date.now()-pauseSince)/1000);
+  },5000);
+}
+function wipeAll(fromWhere){
+  if(!confirm("Tout effacer maintenant ? Rien ne sera conservé."))return;
+  clearInterval(tick);stopWatch();clearLocal();
+  session=null;observations=[];moments=[];
+  if(tracLine){map.removeLayer(tracLine);tracLine=null;}
+  mode="done";
+  $("#doneTxt").textContent="Tout est effacé — il ne reste rien de cette marche, ni sur le téléphone, ni ailleurs. Merci quand même, et à une prochaine fois si tu veux.";
+  show("scDone");
+}
+
+/* ═══ ANALYSE POST-MARCHE ═══ */
+function detectDwells(samples){
+  const out=[];let i=0;
+  while(i<samples.length){
+    let j=i;
+    while(j+1<samples.length&&hav(samples[i].latitude,samples[i].longitude,
+      samples[j+1].latitude,samples[j+1].longitude)<=DWELL_R)j++;
+    const dur=(new Date(samples[j].timestamp)-new Date(samples[i].timestamp))/1000;
+    if(dur>=DWELL_S){const m=samples[Math.floor((i+j)/2)];
+      out.push({type:"dwell",lat:m.latitude,lon:m.longitude,timestamp:m.timestamp,duration_s:Math.round(dur)});
+      i=j+1;}else i++;
+  }
+  return out;
+}
+async function conventionalLine(samples){
+  const a=samples[0],b=samples[samples.length-1];
+  const url=OSRM+a.longitude+","+a.latitude+";"+b.longitude+","+b.latitude+
+    "?overview=full&geometries=geojson";
+  const r=await fetch(url);if(!r.ok)throw new Error("OSRM "+r.status);
+  const j=await r.json();if(!j.routes||!j.routes[0])throw new Error("pas de route");
+  return j.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);   // geojson lon,lat → lat,lon
+}
+function detectDivergences(samples,convLine){
+  const cum=cumOf(convLine),out=[];
+  let epi=null;
+  for(const s of samples){
+    const pr=projectOn(convLine,cum,s.latitude,s.longitude);
+    if(pr.cross>DIVERGE_M){
+      if(!epi)epi={t0:s.timestamp,pts:[],a0:pr.along};
+      epi.pts.push(s);epi.a1=pr.along;epi.maxCross=Math.max(epi.maxCross||0,pr.cross);
+    }else if(epi){
+      finishEpi(epi,out);epi=null;
+    }
+  }
+  if(epi)finishEpi(epi,out);
+  return out;
+}
+function finishEpi(epi,out){
+  const dur=(new Date(epi.pts[epi.pts.length-1].timestamp)-new Date(epi.t0))/1000;
+  if(dur<DIVERGE_S)return;
+  let walked=0;for(let i=1;i<epi.pts.length;i++)
+    walked+=hav(epi.pts[i-1].latitude,epi.pts[i-1].longitude,epi.pts[i].latitude,epi.pts[i].longitude);
+  const conv=Math.abs((epi.a1||0)-(epi.a0||0));
+  const m=epi.pts[Math.floor(epi.pts.length/2)];
+  out.push({type:"divergence",lat:m.latitude,lon:m.longitude,timestamp:m.timestamp,
+    duration_s:Math.round(dur),gain_m:Math.round(walked-conv),max_cross_m:Math.round(epi.maxCross)});
+}
+async function analyse(){
+  mode="analyse";show("scAnalyse");
+  const smp=session.samples;
+  let conv=null;
+  try{
+    if(smp.length>=2){conv=await conventionalLine(smp);session.conventional_ref="osrm-foot-fossgis";}
+  }catch(e){session.conventional_ref=null;}
+  const stars=session.stars.map(s=>({type:"star",...s}));
+  const divs=conv?detectDivergences(smp,conv):[];
+  const dwells=detectDwells(smp);
+  divs.sort((a,b)=>b.duration_s-a.duration_s);dwells.sort((a,b)=>b.duration_s-a.duration_s);
+  moments=[...stars,...divs,...dwells].slice(0,MAX_MOMENTS);
+  buildDebriefMap(conv);
+  if(moments.length===0){show("scFinal");mode="final";return;}
+  qIdx=0;mode="debrief";show("scDebrief");
+  setTimeout(()=>{if(dMap)dMap.invalidateSize();},150);
+  renderQuestion();
+}
+function buildDebriefMap(conv){
+  if(dMap){dMap.remove();}
+  dMap=L.map("mapDebrief",{zoomControl:false});
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(dMap);
+  if(conv)L.polyline(conv,{color:"#8794a5",weight:4,opacity:.7,dashArray:"6 8"}).addTo(dMap);
+  const own=session.samples.map(s=>[s.latitude,s.longitude]);
+  L.polyline(own,{color:"#5db3ff",weight:5,opacity:.95}).addTo(dMap);
+  moments.forEach((m,i)=>{
+    L.marker([m.lat,m.lon],{icon:L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,15],html:
+      `<div style="width:30px;height:30px;border-radius:50%;background:${m.type==="star"?"#f5c84b":"#fff"};
+        color:#0d1116;font:700 15px/30px -apple-system,sans-serif;text-align:center;
+        border:3px solid #5db3ff;box-shadow:0 2px 7px rgba(0,0,0,.55)">${i+1}</div>`})}).addTo(dMap);
+  });
+  if(own.length)dMap.fitBounds(L.polyline(own).getBounds(),{padding:[30,30]});
+}
+
+/* ═══ DÉBRIEF — une question par moment, tout passable ═══ */
+const INTENTS=[["shortcut_local","Raccourci d'habitant"],
+  ["nicer_calmer","Plus beau / plus calme par là"],
+  ["leads_to_place","Ça mène à une adresse que j'aime"],
+  ["avoiding","J'évitais quelque chose (bruit, foule, marches)"],
+  ["other","Autre — je raconte"]];
+function momentLabel(m){
+  if(m.type==="star")return["⭐ Ton repère","Qu'est-ce qu'il y a ici ?"];
+  if(m.type==="divergence")return["Chemin à toi","Ici tu as quitté l'itinéraire qu'une carte aurait proposé ("+
+    (m.gain_m>=0?"+":"")+m.gain_m+" m, "+fmtT(m.duration_s)+") — pourquoi ?"];
+  return["Temps d'arrêt","Tu t'es arrêté "+fmtT(m.duration_s)+" ici — qu'est-ce qui t'a retenu ?"];
+}
+function renderQuestion(){
+  const m=moments[qIdx],[k,q]=momentLabel(m);
+  $("#qCount").textContent="Moment "+(qIdx+1)+" sur "+moments.length+" — tout est passable";
+  $("#mKind").textContent=k;$("#mQuestion").textContent=q;
+  const w=$("#mOpts");w.innerHTML="";
+  INTENTS.forEach(([v,label])=>{
+    const l=document.createElement("label");l.className="opt";l.dataset.v=v;
+    l.innerHTML="<span>"+label+"</span>";
+    l.onclick=()=>{[...w.children].forEach(x=>x.classList.remove("sel"));l.classList.add("sel");
+      const ex=$("#mExtra"),f=$("#mExtraField");
+      if(v==="leads_to_place"){ex.style.display="block";f.placeholder="Le nom de l'adresse (ex. : pâtisserie Untel)";}
+      else if(v==="other"){ex.style.display="block";f.placeholder="Raconte en une phrase";}
+      else ex.style.display="none";};
+    w.appendChild(l);
+  });
+  $("#mExtra").style.display="none";$("#mExtraField").value="";
+  if(dMap){dMap.panTo([m.lat,m.lon]);}
+  $("#btnQNext").textContent=qIdx===moments.length-1?"Terminer le débrief":"Continuer";
+}
+function recordAnswer(skipped){
+  const m=moments[qIdx];
+  if(!skipped){
+    const sel=$("#mOpts .opt.sel");
+    if(sel){const v=sel.dataset.v,extra=$("#mExtraField").value.trim();
+      observations.push({observation_id:"o"+observations.length,
+        session_ref:session.session_id,timestamp:m.timestamp,kind:"other",
+        intent:v,place_name:v==="leads_to_place"?(extra||null):null,
+        description:v==="other"?(extra||null):null,
+        location:{lat:m.lat,lon:m.lon},is_mandatory:false,captured_while_moving:false,
+        source:m.type==="star"?"star_button":m.type==="divergence"?"auto_divergence":"auto_dwell",
+        conventional_ref:session.conventional_ref,
+        divergence_gain_m:m.type==="divergence"?m.gain_m:null});
+      saveLocal(true);}
+  }
+  qIdx++;
+  if(qIdx>=moments.length){mode="final";show("scFinal");}
+  else renderQuestion();
+}
+
+/* ═══ EXPORT ═══ */
+function exportJSON(sess,obs){
+  const out={_meta:{tool:"JW Cockpit marcheur — cadre 2026-08-09 · v0.1",
+      generated_at:new Date().toISOString(),
+      note:"Auto-test du propriétaire — José seul. Marche libre d'habitant, jamais publiée."},
+    WalkSession:{...sess,samples:undefined,events:undefined,stars:undefined,
+      sample_count:sess.samples.length,star_count:(sess.stars||[]).length},
+    LocationSample:sess.samples,InteractionEvent:sess.events,
+    FieldObservation:obs};
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}));
+  a.download="JW_COCKPIT_OTT_"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
+  a.click();clearLocal();
+}
+
+/* ═══ DÉMARRAGE ═══ */
+document.addEventListener("DOMContentLoaded",()=>{
+  if(!initMap())return;
+  offerRecovery();
+  $("#btnAccept").onclick=()=>{$("#sessCode").textContent=newCode();show("scPrep");};
+  $("#btnComp").onclick=enableCompass;
+  $("#btnGo").onclick=()=>{
+    mode="walk";startSession();show("scWalk");moveMapTo("mapHost");
+    tracLine=L.polyline([],{color:"#5db3ff",weight:5,opacity:.9}).addTo(map);
+    startWatch();
+  };
+  $("#btnStar").onclick=()=>{
+    if(mode!=="walk"||!lastPos)return;
+    const c=lastPos.coords;
+    session.stars.push({lat:c.latitude,lon:c.longitude,timestamp:new Date().toISOString()});
+    pushEvent("star","⭐");
+    L.circleMarker([c.latitude,c.longitude],{radius:9,color:"#f5c84b",weight:3,fillColor:"#f5c84b",fillOpacity:.5}).addTo(map);
+    const b=$("#btnStar");b.textContent="⭐ Noté !";setTimeout(()=>b.textContent="⭐ Ici, quelque chose",1400);
+  };
+  $("#btnPause").onclick=()=>{
+    elapsedMs=walkedMs();runSince=null;pauseSince=Date.now();mode="paused";
+    stopWatch();pushEvent("pause",null);
+    $("#pauseFor").textContent="en pause depuis 0 min";show("scPause");
+  };
+  $("#btnResume").onclick=()=>{
+    pushEvent("resume",Math.round((Date.now()-pauseSince)/60000)+" min");
+    pauseSince=null;runSince=Date.now();mode="walk";
+    show("scWalk");moveMapTo("mapHost");startWatch();
+  };
+  $("#btnArrive").onclick=()=>{
+    if(!confirm("Arrivée — terminer l'enregistrement ?"))return;
+    clearInterval(tick);stopWatch();
+    elapsedMs=walkedMs();runSince=null;
+    session.ended_at=new Date().toISOString();session.end_reason="user_finished";
+    session.walking_time_s=Math.round(elapsedMs/1000);
+    pushEvent("finish","Arrivée");saveLocal(true);
+    analyse();
+  };
+  $("#btnWipeWalk").onclick=()=>wipeAll("walk");
+  $("#btnWipeEnd").onclick=()=>wipeAll("final");
+  $("#btnQSkip").onclick=()=>recordAnswer(true);
+  $("#btnQNext").onclick=()=>recordAnswer(false);
+  $("#btnSend").onclick=()=>{
+    session.closing_note=$("#closingNote").value.trim()||null;
+    session.storage_choice="transmit";
+    exportJSON(session,observations);
+    $("#doneTxt").textContent="Marche enregistrée ("+session.samples.length+" points, "+
+      observations.length+" réponse"+(observations.length>1?"s":"")+" de débrief). "+
+      "Le fichier est sur ton téléphone. Ce qui sera envoyé au corpus sera supprimé dès agrégation, "+
+      "au plus tard sous 90 jours.";
+    mode="done";show("scDone");
+  };
+  $("#btnKeep").onclick=()=>{
+    session.closing_note=$("#closingNote").value.trim()||null;
+    session.storage_choice="keep_local";
+    exportJSON(session,observations);
+    $("#doneTxt").textContent="Marche gardée pour toi — le fichier est sur ton téléphone, rien n'est transmis.";
+    mode="done";show("scDone");
+  };
+});
+</script>
+</body>
+</html>
