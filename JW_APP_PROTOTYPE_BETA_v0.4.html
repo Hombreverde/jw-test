@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<title>Journey Walker — Ottawa (prototype v0.4)</title>
+<title>Journey Walker — Ottawa (prototype v0.5)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root{
@@ -67,6 +67,18 @@
   .dots{display:flex;gap:6px;margin-bottom:13px}
   .dots .d{height:7px;flex:1;border-radius:99px;background:#2b3441}
   .dots .d.now{background:var(--acc)} .dots .d.done{background:var(--ok)}
+  .dots .d.skip{background:#5b4a22}
+
+  /* ── bandeau de marche compact : la carte domine (public 80 ans) ── */
+  .panel.walk{padding:10px 14px calc(env(safe-area-inset-bottom) + 10px)}
+  .panel.walk .dots{margin-bottom:10px}
+  .nextline{display:flex;align-items:baseline;gap:10px;margin:0 0 5px}
+  .nextline .nm{font-size:22px;font-weight:650;line-height:1.2;flex:1}
+  .nextline .dv{font-size:23px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--acc);white-space:nowrap}
+  .subline{font-size:15px;color:var(--dim);margin:0 0 9px;font-variant-numeric:tabular-nums}
+  .row{display:flex;gap:9px}
+  .row button{flex:1;margin-top:0}
+  button.mini{min-height:48px;font-size:16px}
 
   button{width:100%;min-height:58px;border:0;border-radius:14px;font:600 19px/1 inherit;color:#08121c;background:var(--acc);cursor:pointer;padding:0 16px}
   button.ghost{background:transparent;color:var(--acc);border:1.5px solid #33465c;min-height:52px;font-size:17px}
@@ -176,18 +188,17 @@
 <section id="scWalk" class="screen">
   <header><h1 id="wTitle">Parcours en cours</h1><span class="chip live" id="chipTime">0 min</span></header>
   <div class="maprow"><div id="mapHost" style="flex:1;display:flex"></div><div id="offRoute"></div></div>
-  <div class="panel">
+  <div class="panel walk">
     <p class="eyebrow" id="wEyebrow">Prochain arrêt</p>
-    <h2 class="big" id="wName">—</h2>
+    <div class="nextline"><span class="nm" id="wName">—</span><span class="dv" id="wDist">—</span></div>
+    <p class="subline"><span id="wEta">—</span> de marche · <span id="wLeft">—</span> pour finir</p>
     <p class="hook hidden" id="wHook"></p>
-    <div class="metrics">
-      <div class="metric"><div class="v" id="wDist">—</div><div class="k">jusqu'au prochain</div></div>
-      <div class="metric"><div class="v" id="wEta">—</div><div class="k">d'ici là</div></div>
-      <div class="metric"><div class="v" id="wLeft">—</div><div class="k">reste au total</div></div>
-    </div>
     <div class="dots" id="dots"></div>
     <button id="btnPause" class="warn" style="display:none">Mettre en veille — je visite</button>
-    <button id="btnFinish" class="stop">Terminer le parcours</button>
+    <div class="row">
+      <button id="btnSkip" class="ghost mini">Passer cet arrêt</button>
+      <button id="btnFinish" class="stop mini">Terminer</button>
+    </div>
   </div>
 </section>
 
@@ -231,13 +242,18 @@ const ROUTE = {"route_id":"OTT-MUSEE-KIWEKI-PARL-BYWARD","route_version":"0.4","
 const CATALOGUE = [{"ville":"Ottawa · Canada","nom":"Du musée au marché By","meta":"2,9 km · ~38 min de marche · 9 arrêts","ready":true},{"ville":"Paris · 18ᵉ","nom":"Montmartre — la Butte et ses escaliers","meta":"2,8 km · ~1 h 10 · 11 arrêts","ready":false},{"ville":"Paris · 3ᵉ–4ᵉ","nom":"Le Marais historique","meta":"3,1 km · ~1 h 15 · 12 arrêts","ready":false},{"ville":"Paris · 10ᵉ","nom":"Le canal Saint-Martin","meta":"3,4 km · ~1 h 20 · 9 arrêts","ready":false},{"ville":"Paris · 5ᵉ","nom":"Quartier latin — collèges et jardins","meta":"2,9 km · ~1 h 10 · 10 arrêts","ready":false},{"ville":"Paris · 20ᵉ","nom":"Belleville et ses ateliers","meta":"2,6 km · ~1 h 05 · 8 arrêts","ready":false}];
 
 /* ═══ RÉGLAGES ═══ */
-const REVEAL_M=40, OFFROUTE_M=45, OFFROUTE_MS=20000, NEAR_START_M=75, SPEED_FALLBACK=1.25;
+/* REVEAL_M 40→50 (leçon 09/08 : personne ne doit chasser un zéro) ;
+   NEAR_TWIN_M protège l'avance auto des arrêts jumeaux (musée aller/retour) ;
+   DIST_STEP : le compteur affiché ne bouge que par pas francs, jamais en tremblant. */
+const REVEAL_M=50, OFFROUTE_M=45, OFFROUTE_MS=20000, NEAR_START_M=75, SPEED_FALLBACK=1.25,
+      NEAR_TWIN_M=2*REVEAL_M, DIST_STEP=10;
 
 /* ═══ ÉTAT ═══ */
 let mode="cat", map=null, planMap=null, watchId=null, orientOn=false, heading=null;
 let meMarker=null, meHalo=null, lastPos=null;
-let targetIdx=0, reached=[], offSince=null, offShown=false, speeds=[];
+let targetIdx=0, reached=[], skipped=[], offSince=null, offShown=false, speeds=[];
 let session=null, tick=null, elapsedMs=0, runSince=null, pauseSince=null;
+let dispDist=null, dispPre=null;
 
 const $=s=>document.querySelector(s);
 const rad=d=>d*Math.PI/180;
@@ -246,7 +262,9 @@ function hav(a,o,b,p){
   const x=Math.sin(dp/2)**2+Math.cos(rad(a))*Math.cos(rad(b))*Math.sin(dl/2)**2;
   return 2*R*Math.asin(Math.sqrt(x));
 }
-const fmtD=m=> m<1000 ? Math.round(m/5)*5+" m" : (m/1000).toFixed(1)+" km";
+const fmtD=m=> m<1000 ? Math.round(m/DIST_STEP)*DIST_STEP+" m" : (m/1000).toFixed(1)+" km";
+/* hystérésis : on ne réaffiche que si la distance a vraiment changé */
+const smoothD=(prev,next)=> prev!=null && Math.abs(next-prev)<DIST_STEP ? prev : next;
 const fmtT=s=>{ if(!isFinite(s)||s<0) return "—"; const m=Math.round(s/60);
   return m<1?"moins d'1 min":m<60?m+" min":Math.floor(m/60)+" h "+String(m%60).padStart(2,"0"); };
 function walkedMs(){ return elapsedMs + (runSince ? Date.now()-runSince : 0); }
@@ -274,10 +292,11 @@ function drawRoute(m){
   L.polyline(ROUTE.line,{color:"#0d1116",weight:11,opacity:.5,lineJoin:"round"}).addTo(m);
   L.polyline(ROUTE.line,{color:"#5db3ff",weight:6,opacity:.95,lineJoin:"round"}).addTo(m);
   ROUTE.stops.forEach((s,i)=>{
-    L.marker([s.lat,s.lon],{icon:L.divIcon({className:"",iconSize:[32,32],iconAnchor:[16,16],html:
-      `<div style="width:32px;height:32px;border-radius:50%;background:#fff;color:#0d1116;
-        font:700 16px/32px -apple-system,sans-serif;text-align:center;
-        border:3px solid #5db3ff;box-shadow:0 2px 7px rgba(0,0,0,.55)">${i+1}</div>`})})
+    const ring=i===0?"#4ec98a":"#5db3ff", sz=i===0?38:32;   // le départ se voit de loin
+    L.marker([s.lat,s.lon],{icon:L.divIcon({className:"",iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],html:
+      `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:#fff;color:#0d1116;
+        font:700 ${i===0?18:16}px/${sz}px -apple-system,sans-serif;text-align:center;
+        border:3px solid ${ring};box-shadow:0 2px 7px rgba(0,0,0,.55)">${i+1}</div>`})})
       .addTo(m).bindPopup("<b>"+(i+1)+". "+s.name+"</b>");
   });
 }
@@ -368,7 +387,14 @@ function onPos(pos){
     meMarker.setLatLng([c.latitude,c.longitude]);
     meHalo.setLatLng([c.latitude,c.longitude]).setRadius(c.accuracy);
   }
-  map.panTo([c.latitude,c.longitude],{animate:true,duration:.6});
+  if(mode==="pre"){
+    // montrer TOUJOURS le marcheur ET le départ sur le même écran — leçon du 09/08 :
+    // suivre seul un compteur de mètres fait tourner en rond
+    const s0=ROUTE.stops[0];
+    map.fitBounds([[c.latitude,c.longitude],[s0.lat,s0.lon]],{padding:[52,52],maxZoom:18,animate:false});
+  }else{
+    map.panTo([c.latitude,c.longitude],{animate:true,duration:.6});
+  }
 
   if(session && mode==="walk") session.samples.push({
     sample_id:"s"+session.samples.length,timestamp:new Date(pos.timestamp).toISOString(),
@@ -386,12 +412,19 @@ function onPos(pos){
 /* ═══ PRÉ-MARCHE ═══ */
 function renderPre(c){
   const s=ROUTE.stops[0], d=hav(c.latitude,c.longitude,s.lat,s.lon);
-  $("#preDist").textContent=fmtD(d);
-  $("#preEta").textContent=fmtT(d/pace());
+  dispPre=smoothD(dispPre,d);
+  const here=d<=REVEAL_M;
+  $("#preDist").textContent=here?"tu y es ✓":fmtD(dispPre);
+  $("#preEta").textContent=here?"—":fmtT(dispPre/pace());
   const far=d>NEAR_START_M, h=$("#preHint");
   h.style.display=far?"block":"none";
-  if(far) h.innerHTML="Tu es à <b>"+fmtD(d)+"</b> du départ. Tu peux démarrer quand même — "+
-    "l'app te guide d'abord jusqu'au premier arrêt, sans compter ça comme un écart.";
+  if(far){ h.className="warnbox"; h.innerHTML="Tu es à <b>"+fmtD(dispPre)+"</b> du départ (pastille verte « 1 » sur la carte). "+
+    "Tu peux démarrer quand même — l'app te guide d'abord jusqu'au premier arrêt, sans compter ça comme un écart."; }
+  const cb=$("#compBox");
+  if(here && cb.style.display!=="block"){
+    h.style.display="block"; h.className="okbox";
+    h.textContent="Tu es au point de départ ✓ — appuie sur Go quand tu veux.";
+  }
   $("#btnGo").textContent=far?"Go — guide-moi jusqu'au départ":"Go — je démarre";
 }
 
@@ -400,20 +433,47 @@ function renderDots(){
   const w=$("#dots"); w.innerHTML="";
   ROUTE.stops.forEach((s,i)=>{
     const d=document.createElement("div");
-    d.className="d"+(reached.includes(s.id)?" done":(i===targetIdx?" now":""));
+    d.className="d"+(reached.includes(s.id)?" done":skipped.includes(s.id)?" skip":(i===targetIdx?" now":""));
     w.appendChild(d);
   });
 }
+/* Un arrêt est une invitation, pas une porte (décision José 2026-08-09).
+   Si le GPS voit le marcheur arriver à un arrêt PLUS LOIN dans le parcours,
+   les arrêts intermédiaires sont marqués « passés » et l'app avance seule.
+   Garde NEAR_TWIN_M : un arrêt jumeau d'un arrêt déjà atteint (musée aller/retour)
+   ne peut pas déclencher l'avance auto — sinon rester devant le musée sauterait la basilique. */
+function autoAdvance(c){
+  if(targetIdx>=ROUTE.stops.length) return;
+  const t=ROUTE.stops[targetIdx];
+  if(hav(c.latitude,c.longitude,t.lat,t.lon)<=REVEAL_M) return;   // l'arrêt visé est là : voie normale
+  for(let j=targetIdx+1;j<ROUTE.stops.length;j++){
+    const s=ROUTE.stops[j];
+    if(hav(c.latitude,c.longitude,s.lat,s.lon)>REVEAL_M) continue;
+    const twin=reached.some(id=>{const r=ROUTE.stops.find(x=>x.id===id);
+      return r && hav(r.lat,r.lon,s.lat,s.lon)<=NEAR_TWIN_M;});
+    if(twin) continue;
+    const passes=[];
+    for(let k=targetIdx;k<j;k++){ const p=ROUTE.stops[k];
+      if(!reached.includes(p.id)&&!skipped.includes(p.id)){ skipped.push(p.id); passes.push(p.name); } }
+    if(passes.length) pushEvent("poi_passed_auto",passes.join(" · "));
+    targetIdx=j; dispDist=null;
+    $("#wHook").classList.add("hidden"); $("#btnPause").style.display="none";
+    renderDots();
+    return;
+  }
+}
 function renderWalk(c){
   if(targetIdx>=ROUTE.stops.length) return finish("route_complete");
+  autoAdvance(c);
   const t=ROUTE.stops[targetIdx], pr=project(c.latitude,c.longitude);
   const straight=hav(c.latitude,c.longitude,t.lat,t.lon);
   const along=Math.max(straight,t.along-pr.along);
+  dispDist=smoothD(dispDist,along);
   $("#wEyebrow").textContent=targetIdx===ROUTE.stops.length-1?"Dernier arrêt":"Prochain arrêt";
   $("#wName").textContent=(targetIdx+1)+". "+t.name;
-  $("#wDist").textContent=fmtD(along);
-  $("#wEta").textContent=fmtT(along/pace());
-  $("#wLeft").textContent=fmtT((along+(ROUTE.total_d-t.along))/pace());
+  $("#wDist").textContent=straight<=REVEAL_M?"tu y es ✓":fmtD(dispDist);
+  $("#wEta").textContent=fmtT(dispDist/pace());
+  $("#wLeft").textContent=fmtT((dispDist+(ROUTE.total_d-t.along))/pace());
   $("#btnPause").style.display = (t.pausable && reached.includes(t.id)) ? "block" : "none";
 
   if(straight<=REVEAL_M && !reached.includes(t.id)){
@@ -421,16 +481,17 @@ function renderWalk(c){
     $("#wHook").textContent=t.hook; $("#wHook").classList.remove("hidden");
     pushEvent("poi_reached",t.name); renderDots();
     if(t.pausable) $("#btnPause").style.display="block";
+    const revealedIdx=targetIdx;
     setTimeout(()=>{
-      if(reached.includes(ROUTE.stops[targetIdx]?.id)){
-        targetIdx++; $("#wHook").classList.add("hidden"); renderDots();
+      if(targetIdx===revealedIdx && reached.includes(ROUTE.stops[targetIdx]?.id)){
+        targetIdx++; dispDist=null; $("#wHook").classList.add("hidden"); renderDots();
         $("#btnPause").style.display="none";
       }
     }, t.pausable?9000:5000);
   }
 }
 function renderOff(c){
-  if(!reached.includes(ROUTE.stops[0].id)){ offSince=null; return; }
+  if(reached.length===0 && skipped.length===0){ offSince=null; return; }
   const pr=project(c.latitude,c.longitude), box=$("#offRoute"), now=Date.now();
   if(pr.cross>OFFROUTE_M){
     if(offSince==null) offSince=now;
@@ -455,7 +516,7 @@ function saveSession(force){
   lastSave=now;
   try{
     localStorage.setItem(SAVE_KEY,JSON.stringify({
-      session,targetIdx,reached,elapsedMs:walkedMs(),savedAt:now,route_id:ROUTE.route_id}));
+      session,targetIdx,reached,skipped,elapsedMs:walkedMs(),savedAt:now,route_id:ROUTE.route_id}));
   }catch(e){/* quota ou mode privé : on continue de marcher */}
 }
 function clearSaved(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
@@ -476,7 +537,7 @@ function offerRecovery(){
   host.insertBefore(b,box.nextSibling);
 }
 function recoverSession(d){
-  session=d.session; reached=d.reached||[]; targetIdx=d.targetIdx||0;
+  session=d.session; reached=d.reached||[]; skipped=d.skipped||[]; targetIdx=d.targetIdx||0;
   elapsedMs=d.elapsedMs||0; runSince=null; mode="done";
   session.end_reason="recovered_after_interruption";
   session.ended_at=new Date(d.savedAt||Date.now()).toISOString();
@@ -502,7 +563,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.4.1",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.5",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Ottawa downtown",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -537,6 +598,7 @@ function finish(reason){
   saveSession(true);          // protégée jusqu'à l'export réussi
   $("#endSummary").textContent="Tu as marché "+fmtT(elapsedMs/1000)+" (hors pauses) et atteint "+
     reached.length+" arrêt"+(reached.length>1?"s":"")+" sur "+ROUTE.stops.length+
+    (skipped.length?" ("+skipped.length+" passé"+(skipped.length>1?"s":"")+" — c'est permis)":"")+
     ". Trois questions rapides, puis on enregistre.";
   const f=$("#favOpts"); f.innerHTML="";
   ROUTE.stops.forEach((s,i)=>{
@@ -564,7 +626,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#planTitle").textContent=ROUTE.name;
   $("#planLead").textContent=ROUTE.stops.length+" arrêts · "+(ROUTE.total_d/1000).toFixed(1)+
     " km · environ "+fmtT(ROUTE.total_t)+" de marche, hors visites. Départ au Musée des beaux-arts, "+
-    "arrivée au marché By. Tu peux mettre le parcours en veille pour visiter le musée ou le Parlement.";
+    "arrivée au marché By. Tu peux mettre le parcours en veille pour visiter le musée ou le Parlement. "+
+    "Chaque arrêt est une invitation, pas une obligation : tu peux en passer, l'app suit ton chemin.";
   const ul=$("#stopList");
   ROUTE.stops.forEach((s,i)=>{
     const li=document.createElement("li");
@@ -585,12 +648,26 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#btnNav").onclick=()=>{ const s=ROUTE.stops[0];
     window.open("https://maps.apple.com/?daddr="+s.lat+","+s.lon+"&dirflg=w","_blank"); };
   $("#btnGo").onclick=()=>{
-    mode="walk"; startSession(); show("scWalk"); moveMapTo("mapHost"); renderDots();
+    mode="walk"; targetIdx=0; reached=[]; skipped=[]; dispDist=null;
+    startSession(); show("scWalk"); moveMapTo("mapHost"); renderDots();
     if(lastPos){ renderWalk(lastPos.coords); renderOff(lastPos.coords); }
   };
   $("#btnPause").onclick=pauseWalk;
   $("#btnResume").onclick=resumeWalk;
-  $("#btnFinish").onclick=()=>finish("user_finished");
+  $("#btnSkip").onclick=()=>{
+    if(mode!=="walk"||targetIdx>=ROUTE.stops.length) return;
+    const t=ROUTE.stops[targetIdx];
+    if(!reached.includes(t.id)&&!skipped.includes(t.id)) skipped.push(t.id);
+    pushEvent("poi_skipped",t.name);
+    targetIdx++; dispDist=null;
+    $("#wHook").classList.add("hidden"); $("#btnPause").style.display="none";
+    renderDots();
+    if(targetIdx>=ROUTE.stops.length) return finish("route_complete");
+    if(lastPos) renderWalk(lastPos.coords);
+  };
+  $("#btnFinish").onclick=()=>{
+    if(confirm("Terminer le parcours maintenant ?")) finish("user_finished");
+  };
 
   document.addEventListener("click",e=>{
     const o=e.target.closest(".opt"); if(!o) return;
@@ -603,7 +680,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       favorite_poi_id:$("#favOpts .opt.sel")?.dataset.v||null,
       confusion_note:$("#confusion").value.trim()||null,
       would_recommend:$("#recOpts .opt.sel")?.dataset.v||null};
-    const out={_meta:{tool:"JW prototype outil marcheur — Volet 2 · v0.4",
+    const out={_meta:{tool:"JW prototype outil marcheur — Volet 2 · v0.5",
         generated_at:new Date().toISOString(),
         note:"Auto-test du propriétaire — José seul. Contenu narratif factice/minimal, jamais publié."},
       WalkSession:{...session,samples:undefined,events:undefined,usage_feedback:undefined,
