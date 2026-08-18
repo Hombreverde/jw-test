@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<title>Journey Walker — Ottawa (prototype v0.5.2)</title>
+<title>Journey Walker — Ottawa (prototype v0.5.3)</title>
 <link rel="apple-touch-icon" href="jw-icon-180.png">
 <link rel="icon" type="image/png" href="jw-icon-180.png">
 <meta name="theme-color" content="#12161c">
@@ -292,6 +292,15 @@ function project(lat,lon){
 const pace=()=> speeds.length<6 ? SPEED_FALLBACK
   : Math.min(2.0,Math.max(0.6,[...speeds].sort((a,b)=>a-b)[Math.floor(speeds.length/2)]));
 
+/* ═══ LANDMARKS (v0.5.3) — pointés même hors tracé : dévier est un choix du marcheur ═══ */
+const LANDMARKS=[{"n":"Musée des beaux-arts du Canada","k":"musée","lat":45.42952,"lon":-75.69869},{"n":"Maman (l’araignée de Louise Bourgeois)","k":"œuvre","lat":45.42933,"lon":-75.69726},{"n":"Basilique-cathédrale Notre-Dame","k":"église","lat":45.42979,"lon":-75.69636},{"n":"Monument Samuel de Champlain","k":"monument","lat":45.42952,"lon":-75.70102},{"n":"Kichi Zibi Innini (le guetteur anishinabe)","k":"œuvre","lat":45.42986,"lon":-75.70124},{"n":"Belvédère de la pointe Kìwekì","k":"vue","lat":45.42958,"lon":-75.70161},{"n":"Parc Major’s Hill","k":"parc","lat":45.42725,"lon":-75.69749},{"n":"Statue du colonel John By","k":"monument","lat":45.42644,"lon":-75.69699},{"n":"Ruines de la maison du colonel By","k":"repère","lat":45.42768,"lon":-75.69791},{"n":"Monument au maintien de la paix (Réconciliation)","k":"monument","lat":45.4288,"lon":-75.69679},{"n":"Musée Bytown (l’auvent vert des écluses)","k":"musée","lat":45.42585,"lon":-75.69767},{"n":"Les huit écluses du canal Rideau","k":"vue","lat":45.42483,"lon":-75.69521},{"n":"Fairmont Château Laurier","k":"bâtiment","lat":45.42558,"lon":-75.69522},{"n":"Sénat du Canada (1 Wellington)","k":"bâtiment","lat":45.42464,"lon":-75.69358},{"n":"Monument aux Valeureux","k":"monument","lat":45.42436,"lon":-75.69519},{"n":"Monument commémoratif de guerre · Tombe du Soldat inconnu","k":"monument","lat":45.42405,"lon":-75.69552},{"n":"Flamme du centenaire","k":"monument","lat":45.42373,"lon":-75.6987},{"n":"Édifice du Centre et Tour de la Paix (Parlement)","k":"bâtiment","lat":45.42507,"lon":-75.69987},{"n":"Statue de Terry Fox","k":"monument","lat":45.42325,"lon":-75.69813},{"n":"Édifice du marché By","k":"repère","lat":45.42766,"lon":-75.69239},{"n":"Mât totémique du Canada","k":"œuvre","lat":45.4268,"lon":-75.69297},{"n":"Tin House Court (la maison de fer-blanc)","k":"œuvre","lat":45.42857,"lon":-75.69559},{"n":"Enseigne OTTAWA (rue York)","k":"repère","lat":45.42749,"lon":-75.6945}];
+function drawLandmarks(m){
+  LANDMARKS.forEach(l=>{
+    L.marker([l.lat,l.lon],{zIndexOffset:200,icon:L.divIcon({className:"",iconSize:[15,15],iconAnchor:[8,8],html:
+      `<div style="width:11px;height:11px;margin:2px;background:#e0a83c;transform:rotate(45deg);border:2px solid #fff;border-radius:2px;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>`})})
+      .addTo(m).bindPopup("<b>"+l.n+"</b><br><span style='opacity:.8'>"+l.k+" · hors tracé permis</span>");
+  });
+}
 /* ═══ CARTE ═══ */
 const baseLayer=()=>L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
   {maxZoom:19,attribution:'© OpenStreetMap'});
@@ -310,7 +319,7 @@ function drawRoute(m){
     `<div style="width:40px;height:40px;border-radius:50%;background:#4ec98a;color:#08121c;
       font:700 19px/40px -apple-system,sans-serif;text-align:center;
       border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.6)">D</div>`})})
-    .addTo(m).bindPopup("<b>Départ du parcours</b> — sur le trottoir, devant le musée");
+    .addTo(m).bindPopup("<b>Départ du parcours</b> — sur le trottoir, devant la basilique");
 }
 function initMaps(){
   if(typeof L==="undefined"){
@@ -319,10 +328,10 @@ function initMaps(){
     return false;
   }
   planMap=L.map("mapPlan",{zoomControl:false});
-  baseLayer().addTo(planMap); drawRoute(planMap);
+  baseLayer().addTo(planMap); drawRoute(planMap); drawLandmarks(planMap);
   planMap.fitBounds(L.polyline(ROUTE.line).getBounds(),{padding:[26,26]});
   map=L.map("map",{zoomControl:false});
-  baseLayer().addTo(map); drawRoute(map);
+  baseLayer().addTo(map); drawRoute(map); drawLandmarks(map);
   map.setView([ROUTE.stops[0].lat,ROUTE.stops[0].lon],17);
   return true;
 }
@@ -580,7 +589,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.5.2",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.5.3",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Ottawa downtown",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -697,7 +706,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       favorite_poi_id:$("#favOpts .opt.sel")?.dataset.v||null,
       confusion_note:$("#confusion").value.trim()||null,
       would_recommend:$("#recOpts .opt.sel")?.dataset.v||null};
-    const out={_meta:{tool:"JW prototype outil marcheur — Volet 2 · v0.5.2",
+    const out={_meta:{tool:"JW prototype outil marcheur — Volet 2 · v0.5.3",
         generated_at:new Date().toISOString(),
         note:"Auto-test du propriétaire — José seul. Contenu narratif factice/minimal, jamais publié."},
       WalkSession:{...session,samples:undefined,events:undefined,usage_feedback:undefined,
