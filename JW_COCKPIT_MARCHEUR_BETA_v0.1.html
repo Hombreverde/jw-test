@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.3)</title>
+<title>JW — Cockpit marcheur (prototype v0.3.1)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#12161c">
@@ -117,7 +117,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live">v0.3 ⭐</span></header>
+    <span class="chip live">v0.3.1 ⭐</span></header>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -274,7 +274,7 @@
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.3", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.3.1", SAVE_KEY="jw_cockpit_inprogress";
 let lastTouchMs=0; const EXPLORE_MS=15000, FOLLOW_Z=17;
 
 /* v0.3 — landmarks pour « Ici, autour de toi » (OSM, curation 18/08 — Ottawa centre ;
@@ -750,20 +750,39 @@ document.addEventListener("DOMContentLoaded",()=>{
     const b=$("#btnStar");b.textContent="⭐ Notée — elle sortira, quoi qu'il arrive";
     setTimeout(()=>b.textContent="⭐ Ici, quelque chose",1600);
   };
+  /* v0.3.1 — liaison tactile robuste : sur iOS, clavier ouvert, le « click » d'un bouton
+     dans une feuille absolue peut être avalé (bug vécu 21/08 : « Garder ce récit » muet).
+     touchend avec garde anti-défilement + click, jamais les deux (verrou 600 ms). */
+  function sheetTap(id,fn){
+    const el=$(id);let sx=0,sy=0,moved=false,busy=false;
+    const fire=e=>{if(busy)return;busy=true;setTimeout(()=>busy=false,600);
+      if(e&&e.cancelable)e.preventDefault();fn();};
+    el.addEventListener("touchstart",e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;moved=false;},{passive:true});
+    el.addEventListener("touchmove",e=>{const t=e.touches[0];
+      if(Math.hypot(t.clientX-sx,t.clientY-sy)>12)moved=true;},{passive:true});
+    el.addEventListener("touchend",e=>{if(!moved)fire(e);},{passive:false});
+    el.addEventListener("click",fire);
+  }
   $("#veil").onclick=closeSheet;
-  $("#btnSheetClose").onclick=closeSheet;
-  $("#btnMark").onclick=()=>{if(dropStar(null))closeSheet();};
-  $("#btnRaconte").onclick=()=>{
+  sheetTap("#btnSheetClose",closeSheet);
+  sheetTap("#btnMark",()=>{if(dropStar(null))closeSheet();});
+  sheetTap("#btnRaconte",()=>{
     $("#sheetMain").style.display="none";$("#sheetStory").style.display="block";
     $("#storyTxt").value="";$("#storyTxt").focus();
-  };
-  $("#btnStoryCancel").onclick=()=>{
+  });
+  sheetTap("#btnStoryCancel",()=>{
     $("#sheetMain").style.display="block";$("#sheetStory").style.display="none";
-  };
-  $("#btnStorySave").onclick=()=>{
-    const t=$("#storyTxt").value.trim();
+  });
+  sheetTap("#btnStorySave",()=>{
+    const ta=$("#storyTxt");ta.blur();
+    const t=ta.value.trim();
     const s=dropStar(t||null);
-    if(s&&t){s.has_obs=true;
+    if(!s){ /* v0.3.1 — GPS/état pas prêt : on n'avale JAMAIS un récit en silence */
+      const f=$("#lmFiche");f.style.display="block";
+      f.textContent="Position pas encore reçue — réessaie dans quelques secondes, ton texte est toujours là.";
+      return;
+    }
+    if(t){s.has_obs=true;
       observations.push({observation_id:"o"+observations.length,
         session_ref:session.session_id,timestamp:s.timestamp,kind:"other",
         intent:"other",place_name:null,description:t,ladder_rung:"recit_a_chaud",
@@ -771,8 +790,9 @@ document.addEventListener("DOMContentLoaded",()=>{
         source:"star_button",conventional_ref:null,divergence_gain_m:null,
         consent_scope:"self"});
       saveLocal(true);}
-    closeSheet();
-  };
+    const b=$("#btnStorySave");b.textContent="✓ Récit gardé";
+    setTimeout(()=>{b.textContent="Garder ce récit";closeSheet();},700);
+  });
   document.querySelectorAll("#mConsentSeg button").forEach(b=>{
     b.onclick=()=>setConsent(b.dataset.c);});
   $("#mExtraField").addEventListener("input",function(){
