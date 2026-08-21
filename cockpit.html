@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.3.1)</title>
+<title>JW — Cockpit marcheur (prototype v0.3.2)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#12161c">
@@ -117,7 +117,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live">v0.3.1 ⭐</span></header>
+    <span class="chip live">v0.3.2 ⭐</span></header>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -274,7 +274,7 @@
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.3.1", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.3.2", SAVE_KEY="jw_cockpit_inprogress";
 let lastTouchMs=0; const EXPLORE_MS=15000, FOLLOW_Z=17;
 
 /* v0.3 — landmarks pour « Ici, autour de toi » (OSM, curation 18/08 — Ottawa centre ;
@@ -728,8 +728,14 @@ function openSheet(){
     row.appendChild(b);});
   $("#sheetMain").style.display="block";$("#sheetStory").style.display="none";
   $("#veil").classList.add("on");$("#sheet").classList.add("on");
+  /* v0.3.2 — ceinture et bretelles : le style inline double la classe (fermeture
+     restée coincée sur le terrain le 21/08 malgré le retrait de classe) */
+  $("#veil").style.display="block";$("#sheet").style.transform="translateY(0)";
 }
-function closeSheet(){$("#veil").classList.remove("on");$("#sheet").classList.remove("on");}
+function closeSheet(){
+  $("#veil").classList.remove("on");$("#sheet").classList.remove("on");
+  $("#veil").style.display="none";$("#sheet").style.transform="translateY(105%)";
+}
 
 document.addEventListener("DOMContentLoaded",()=>{
   if(!initMap())return;
@@ -790,8 +796,11 @@ document.addEventListener("DOMContentLoaded",()=>{
         source:"star_button",conventional_ref:null,divergence_gain_m:null,
         consent_scope:"self"});
       saveLocal(true);}
-    const b=$("#btnStorySave");b.textContent="✓ Récit gardé";
-    setTimeout(()=>{b.textContent="Garder ce récit";closeSheet();},700);
+    /* v0.3.2 — fermer TOUT DE SUITE, confirmer sur l'écran de marche (carte pleine vue) */
+    closeSheet();
+    const b=$("#btnStar");
+    b.textContent=t?"✓ Récit gardé — ⭐ posée":"⭐ Notée !";
+    setTimeout(()=>b.textContent="⭐ Ici, quelque chose",2200);
   });
   document.querySelectorAll("#mConsentSeg button").forEach(b=>{
     b.onclick=()=>setConsent(b.dataset.c);});
