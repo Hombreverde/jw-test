@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.2)</title>
+<title>JW — Cockpit marcheur (prototype v0.3)</title>
 <link rel="apple-touch-icon" href="jw-icon-180.png">
 <link rel="icon" type="image/png" href="jw-icon-180.png">
 <meta name="theme-color" content="#12161c">
@@ -81,6 +81,35 @@
   .spin{flex:1;display:grid;place-items:center;text-align:center;padding:24px;color:var(--dim);font-size:17px;line-height:1.6}
   .note{font-size:14px;color:var(--dim);line-height:1.5;margin:14px 0}
   .fail{padding:26px 18px;text-align:center;color:var(--dim);font-size:16px;line-height:1.55}
+
+  /* v0.3 — mission en tête (concept 18/08 §2) */
+  .mstrip{background:#16281f;border-bottom:1px solid #2c5a41;color:#bfe3cd;
+    font-size:14px;font-weight:600;padding:7px 16px;line-height:1.35}
+  /* v0.3 — mini-cockpit de l'instant (concept 18/08 §3) */
+  #scWalk{position:relative}
+  .taphint{position:absolute;left:12px;right:12px;bottom:12px;z-index:500;pointer-events:none;
+    background:rgba(20,25,32,.85);color:#cfe6ff;font-size:13px;font-weight:600;
+    padding:7px 10px;border-radius:10px;text-align:center}
+  .veil{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;z-index:1199}
+  .veil.on{display:block}
+  .sheet{position:absolute;left:0;right:0;bottom:0;z-index:1200;background:var(--card);
+    border-top:2px solid var(--acc);border-radius:20px 20px 0 0;
+    padding:12px 16px calc(env(safe-area-inset-bottom) + 14px);
+    transform:translateY(105%);transition:transform .22s ease;max-height:72%;overflow-y:auto}
+  .sheet.on{transform:translateY(0)}
+  .grab{width:44px;height:5px;border-radius:99px;background:var(--line);margin:0 auto 10px}
+  .sheet .mline{font-size:14px;font-weight:600;color:var(--ok);margin:0 0 8px}
+  .lmrow{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 10px}
+  .lmchip{width:auto;min-height:40px;font-size:14px;padding:6px 12px;border-radius:999px;
+    background:#2a2519;color:#f1dcae;border:1.5px solid #5b4a22}
+  .lmfiche{font-size:14px;color:var(--dim);background:#161c24;border:1px solid var(--line);
+    border-radius:10px;padding:8px 11px;margin:0 0 10px}
+  /* v0.3 — interrupteur de consentement par récit (concept 18/08 §5) */
+  .seg{display:flex;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;margin:8px 0 14px}
+  .seg button{flex:1;width:auto;min-height:46px;border-radius:0;background:#161c24;
+    color:var(--ink);font-size:14px;border:0;border-left:1px solid var(--line);margin-top:0}
+  .seg button:first-child{border-left:0}
+  .seg button.on{background:var(--acc);color:#08121c}
 </style>
 </head>
 <body>
@@ -129,12 +158,38 @@
 <section id="scWalk" class="screen">
   <header><h1>Marche en cours</h1><span class="chip live" id="chipTime">0 min</span>
     <button class="wipe" id="btnWipeWalk">Tout effacer</button></header>
-  <div class="maprow"><div id="mapHost" style="flex:1;display:flex"></div></div>
+  <div class="mstrip" id="walkMission">🎯 Faire découvrir ton quartier à quelqu'un qui le visite.</div>
+  <div class="maprow"><div id="mapHost" style="flex:1;display:flex"></div>
+    <div class="taphint" id="tapHint" style="display:none">Touche la carte : elle ouvre ton espace.</div></div>
   <div class="panel">
     <button id="btnStar" class="star">⭐ Ici, quelque chose</button>
     <div class="row">
       <button id="btnPause" class="warn mini">Pause</button>
       <button id="btnArrive" class="mini">Arrivée</button>
+    </div>
+  </div>
+  <!-- v0.3 — mini-cockpit de l'instant : un toucher ouvre l'espace du marcheur -->
+  <div class="veil" id="veil"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-label="Ton espace, ici et maintenant">
+    <div class="grab"></div>
+    <p class="mline" id="sheetMission">🎯 Ta mission : faire découvrir ton quartier.</p>
+    <p class="eyebrow">Ici, autour de toi</p>
+    <div class="lmrow" id="lmRow"></div>
+    <div class="lmfiche" id="lmFiche" style="display:none"></div>
+    <div id="sheetMain">
+      <button id="btnRaconte">🎙 Raconte ce qu'il y a ici</button>
+      <div class="row">
+        <button id="btnMark" class="star mini">⭐ Juste marquer</button>
+        <button id="btnSheetClose" class="ghost mini">Fermer</button>
+      </div>
+    </div>
+    <div id="sheetStory" style="display:none">
+      <textarea id="storyTxt" placeholder="Une phrase suffit — tu développeras assis, au débrief."></textarea>
+      <p class="dicte">🎙 Dictée du clavier : le téléphone transcrit — l'app ne reçoit que du texte.</p>
+      <div class="row">
+        <button id="btnStorySave" class="mini">Garder ce récit</button>
+        <button id="btnStoryCancel" class="ghost mini">Annuler</button>
+      </div>
     </div>
   </div>
 </section>
@@ -168,6 +223,14 @@
       <input type="text" id="mExtraField" placeholder="">
       <p class="dicte">🎙 Tu peux dicter : appuie sur le micro du clavier.</p>
     </div>
+    <div id="mConsent" style="display:none">
+      <p class="eyebrow">Ce récit t'appartient — pour qui ?</p>
+      <div class="seg" id="mConsentSeg">
+        <button type="button" data-c="app">Pour l'app</button>
+        <button type="button" data-c="team">Pour l'équipe</button>
+        <button type="button" data-c="self" class="on">Pour moi</button>
+      </div>
+    </div>
   </div>
   <div class="panel"><div class="row" style="margin-top:0">
     <button id="btnQSkip" class="ghost mini">Passer</button>
@@ -182,6 +245,14 @@
     <h2 class="big">Qu'est-ce que les visiteurs louperaient sans toi ?</h2>
     <textarea id="closingNote" placeholder="Facultatif — une phrase suffit."></textarea>
     <p class="dicte">🎙 Tu peux dicter : appuie sur le micro du clavier.</p>
+    <div id="fConsent" style="display:none">
+      <p class="eyebrow">Ce récit t'appartient — pour qui ?</p>
+      <div class="seg" id="fConsentSeg">
+        <button type="button" data-c="app">Pour l'app</button>
+        <button type="button" data-c="team">Pour l'équipe</button>
+        <button type="button" data-c="self" class="on">Pour moi</button>
+      </div>
+    </div>
     <p class="eyebrow" style="margin-top:14px">Ta marche t'appartient — choisis :</p>
   </div>
   <div class="panel">
@@ -202,8 +273,43 @@
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.2", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.3", SAVE_KEY="jw_cockpit_inprogress";
 let lastTouchMs=0; const EXPLORE_MS=15000, FOLLOW_Z=17;
+
+/* v0.3 — landmarks pour « Ici, autour de toi » (OSM, curation 18/08 — Ottawa centre ;
+   ailleurs, la feuille le dit honnêtement : rien de répertorié) */
+const LM_NEAR_M=160;
+const LANDMARKS=[
+["Musée des beaux-arts du Canada","musée",45.42952,-75.69869],
+["Maman (l'araignée de Louise Bourgeois)","œuvre",45.42933,-75.69726],
+["Basilique-cathédrale Notre-Dame","église",45.42979,-75.69636],
+["Monument Samuel de Champlain","monument",45.42952,-75.70102],
+["Kichi Zibi Innini (le guetteur anishinabe)","œuvre",45.42986,-75.70124],
+["Belvédère de la pointe Kìwekì","vue",45.42958,-75.70161],
+["Parc Major's Hill","parc",45.42725,-75.69749],
+["Statue du colonel John By","monument",45.42644,-75.69699],
+["Ruines de la maison du colonel By","repère",45.42768,-75.69791],
+["Monument au maintien de la paix (Réconciliation)","monument",45.4288,-75.69679],
+["Musée Bytown (l'auvent vert des écluses)","musée",45.42585,-75.69767],
+["Les huit écluses du canal Rideau","vue",45.42483,-75.69521],
+["Fairmont Château Laurier","bâtiment",45.42558,-75.69522],
+["Sénat du Canada (1 Wellington)","bâtiment",45.42464,-75.69358],
+["Monument aux Valeureux","monument",45.42436,-75.69519],
+["Monument commémoratif de guerre · Soldat inconnu","monument",45.42405,-75.69552],
+["Flamme du centenaire","monument",45.42373,-75.6987],
+["Édifice du Centre et Tour de la Paix (Parlement)","bâtiment",45.42507,-75.69987],
+["Statue de Terry Fox","monument",45.42325,-75.69813],
+["Édifice du marché By","repère",45.42766,-75.69239],
+["Mât totémique du Canada","œuvre",45.4268,-75.69297],
+["Tin House Court (la maison de fer-blanc)","œuvre",45.42857,-75.69559],
+["Enseigne OTTAWA (rue York)","repère",45.42749,-75.6945]];
+
+/* v0.3 — l'échelle des questions (concept 18/08 §4) : un barreau par étoile, en montant */
+const RUNGS=[
+ ["fait","Qu'est-ce qu'il y a ici ?"],
+ ["souvenir","Qu'est-ce que ça te rappelle, cet endroit ?"],
+ ["secret","Qu'est-ce qu'un visiteur ne trouverait jamais ici sans toi ?"],
+ ["transmission","À qui d'autre ce lieu appartient-il ? Le boulanger, la voisine…"]];
 
 /* ═══ ÉTAT ═══ */
 let mode="notice", map=null, dMap=null, watchId=null, orientOn=false, heading=null;
@@ -314,6 +420,9 @@ function onPos(pos){
     else map.panTo([c.latitude,c.longitude],{animate:true,duration:.6});
   }
   if(mode!=="walk"||!session)return;
+  /* v0.3 — zone de départ honnête : déduite du premier point (~1 km), jamais codée en dur */
+  if(session.start_zone_generic==null)
+    session.start_zone_generic="secteur ~"+c.latitude.toFixed(2)+", "+c.longitude.toFixed(2)+" (±1 km)";
   session.samples.push({sample_id:"s"+session.samples.length,
     timestamp:new Date(pos.timestamp).toISOString(),
     latitude:c.latitude,longitude:c.longitude,horizontal_accuracy_m:Math.round(c.accuracy),
@@ -354,9 +463,9 @@ function pushEvent(kind,note){if(session){session.events.push({event_id:"e"+sess
 function startSession(){
   const t0=Date.now();runSince=t0;elapsedMs=0;
   session={session_id:$("#sessCode").textContent,consent_ref:"OWNER_SELF_TEST",
-    walk_kind:"free_resident_walk",app_version:APP_VERSION,schema_version:"0.2+fo0.3",
+    walk_kind:"free_resident_walk",app_version:APP_VERSION,schema_version:"0.3+fo0.4",
     device_class:"ios",started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
-    start_zone_generic:"Ottawa downtown",compass_enabled:orientOn,
+    start_zone_generic:null,compass_enabled:orientOn,
     mission_note:$("#missionNote").value.trim()||null,closing_note:null,
     conventional_ref:null,samples:[],events:[],stars:[]};
   pushEvent("start","Départ marcheur");
@@ -429,11 +538,22 @@ async function analyse(){
   try{
     if(smp.length>=2){conv=await conventionalLine(smp);session.conventional_ref="osrm-foot-fossgis";}
   }catch(e){session.conventional_ref=null;}
-  const stars=session.stars.map(s=>({type:"star",...s}));
+  const stars=session.stars.map(s=>({type:"star",lat:s.lat,lon:s.lon,timestamp:s.timestamp,
+    told:!!s.note,ref:s}));
   const divs=conv?detectDivergences(smp,conv):[];
   const dwells=detectDwells(smp);
   divs.sort((a,b)=>b.duration_s-a.duration_s);dwells.sort((a,b)=>b.duration_s-a.duration_s);
   moments=[...stars,...divs,...dwells].slice(0,MAX_MOMENTS);
+  /* v0.3 — une étoile existe TOUJOURS : celles qui ne rentrent pas au débrief
+     sortent muettes, avec leur position (lacune du 18/08 : 5 posées, 2 exportées) */
+  session.stars.forEach(s=>{
+    if(!s.has_obs&&!moments.some(m=>m.ref===s)){starMuette(s);s.has_obs=true;}
+  });
+  /* v0.3 — l'échelle : un barreau par étoile, en montant ; déjà raconté à chaud → on saute « le fait » */
+  let si=0;
+  moments.forEach(m=>{if(m.type==="star"){
+    const i=m.told?Math.max(1,Math.min(si,RUNGS.length-1)):Math.min(si,RUNGS.length-1);
+    m.rung=RUNGS[i][0];m.rung_q=RUNGS[i][1];si++;}});
   buildDebriefMap(conv);
   if(moments.length===0){show("scFinal");mode="final";return;}
   qIdx=0;mode="debrief";show("scDebrief");
@@ -463,85 +583,209 @@ const INTENTS=[["shortcut_local","Raccourci d'habitant"],
   ["avoiding","J'évitais quelque chose (bruit, foule, marches)"],
   ["other","Autre — je raconte"]];
 function momentLabel(m){
-  if(m.type==="star")return["⭐ Ton repère","Qu'est-ce qu'il y a ici ?"];
+  if(m.type==="star")return["⭐ Ton repère"+(m.told?" — déjà raconté à chaud":""),
+    m.rung_q||"Qu'est-ce qu'il y a ici ?"];
   if(m.type==="divergence")return["Chemin à toi","Ici tu as quitté l'itinéraire qu'une carte aurait proposé ("+
     (m.gain_m>=0?"+":"")+m.gain_m+" m, "+fmtT(m.duration_s)+") — pourquoi ?"];
   return["Temps d'arrêt","Tu t'es arrêté "+fmtT(m.duration_s)+" ici — qu'est-ce qui t'a retenu ?"];
 }
+/* v0.3 — interrupteur de consentement par récit : rien ne part sans ce choix */
+let consentVal="self";
+function setConsent(v){consentVal=v;
+  document.querySelectorAll("#mConsentSeg button").forEach(b=>b.classList.toggle("on",b.dataset.c===v));}
+function starMuette(s){
+  observations.push({observation_id:"o"+observations.length,
+    session_ref:session.session_id,timestamp:s.timestamp,kind:"other",
+    intent:"unanswered",place_name:null,description:null,
+    location:{lat:s.lat,lon:s.lon},is_mandatory:false,captured_while_moving:false,
+    source:"star_button",conventional_ref:session.conventional_ref,
+    divergence_gain_m:null,consent_scope:"self"});
+  saveLocal(true);
+}
 function renderQuestion(){
-  const m=moments[qIdx],[k,q]=momentLabel(m);
+  const m=moments[qIdx],[k,q]=momentLabel(m),isDiv=m.type==="divergence";
   $("#qCount").textContent="Moment "+(qIdx+1)+" sur "+moments.length+" — tout est passable";
   $("#mKind").textContent=k;$("#mQuestion").textContent=q;
   const w=$("#mOpts");w.innerHTML="";
-  INTENTS.forEach(([v,label])=>{
-    const l=document.createElement("label");l.className="opt";l.dataset.v=v;
-    l.innerHTML="<span>"+label+"</span>";
-    l.onclick=()=>{[...w.children].forEach(x=>x.classList.remove("sel"));l.classList.add("sel");
-      const ex=$("#mExtra"),f=$("#mExtraField");
-      if(v==="leads_to_place"){ex.style.display="block";f.placeholder="Le nom de l'adresse (ex. : pâtisserie Untel)";}
-      else if(v==="other"){ex.style.display="block";f.placeholder="Raconte en une phrase";}
-      else ex.style.display="none";};
-    w.appendChild(l);
-  });
-  $("#mExtra").style.display="none";$("#mExtraField").value="";
+  if(isDiv){
+    INTENTS.forEach(([v,label])=>{
+      const l=document.createElement("label");l.className="opt";l.dataset.v=v;
+      l.innerHTML="<span>"+label+"</span>";
+      l.onclick=()=>{[...w.children].forEach(x=>x.classList.remove("sel"));l.classList.add("sel");
+        const ex=$("#mExtra"),f=$("#mExtraField");
+        if(v==="leads_to_place"){ex.style.display="block";f.placeholder="Le nom de l'adresse (ex. : pâtisserie Untel)";}
+        else if(v==="other"){ex.style.display="block";f.placeholder="Raconte en une phrase";}
+        else{ex.style.display="none";f.value="";$("#mConsent").style.display="none";}};
+      w.appendChild(l);
+    });
+    $("#mExtra").style.display="none";
+  }else{
+    /* v0.3 — étoile & temps d'arrêt : la question de l'échelle + récit libre, tout passable */
+    $("#mExtra").style.display="block";
+    $("#mExtraField").placeholder=m.told?
+      "Tu peux développer ton récit — ou passer, il est déjà gardé":
+      "Raconte — une phrase suffit, et tu peux passer";
+  }
+  $("#mExtraField").value="";
+  setConsent("self");$("#mConsent").style.display="none";
   if(dMap){dMap.panTo([m.lat,m.lon]);}
   $("#btnQNext").textContent=qIdx===moments.length-1?"Terminer le débrief":"Continuer";
 }
 function recordAnswer(skipped){
   const m=moments[qIdx];
+  let answered=false;
   if(!skipped){
-    const sel=$("#mOpts .opt.sel");
-    if(sel){const v=sel.dataset.v,extra=$("#mExtraField").value.trim();
-      observations.push({observation_id:"o"+observations.length,
-        session_ref:session.session_id,timestamp:m.timestamp,kind:"other",
-        intent:v,place_name:v==="leads_to_place"?(extra||null):null,
-        description:v==="other"?(extra||null):null,
-        location:{lat:m.lat,lon:m.lon},is_mandatory:false,captured_while_moving:false,
-        source:m.type==="star"?"star_button":m.type==="divergence"?"auto_divergence":"auto_dwell",
-        conventional_ref:session.conventional_ref,
-        divergence_gain_m:m.type==="divergence"?m.gain_m:null});
-      saveLocal(true);}
+    if(m.type==="divergence"){
+      const sel=$("#mOpts .opt.sel");
+      if(sel){const v=sel.dataset.v,extra=$("#mExtraField").value.trim();
+        observations.push({observation_id:"o"+observations.length,
+          session_ref:session.session_id,timestamp:m.timestamp,kind:"other",
+          intent:v,place_name:v==="leads_to_place"?(extra||null):null,
+          description:v==="other"?(extra||null):null,
+          location:{lat:m.lat,lon:m.lon},is_mandatory:false,captured_while_moving:false,
+          source:"auto_divergence",conventional_ref:session.conventional_ref,
+          divergence_gain_m:m.gain_m,
+          consent_scope:extra?consentVal:"team"});
+        answered=true;saveLocal(true);}
+    }else{
+      const txt=$("#mExtraField").value.trim();
+      if(txt){
+        observations.push({observation_id:"o"+observations.length,
+          session_ref:session.session_id,timestamp:m.timestamp,kind:"other",
+          intent:"other",place_name:null,description:txt,
+          ladder_rung:m.rung||null,
+          location:{lat:m.lat,lon:m.lon},is_mandatory:false,captured_while_moving:false,
+          source:m.type==="star"?"star_button":"auto_dwell",
+          conventional_ref:session.conventional_ref,divergence_gain_m:null,
+          consent_scope:consentVal});
+        answered=true;if(m.ref)m.ref.has_obs=true;saveLocal(true);}
+    }
   }
+  /* v0.3 — une étoile passée sans réponse sort quand même, muette, avec sa position */
+  if(!answered&&m.type==="star"&&m.ref&&!m.ref.has_obs){starMuette(m.ref);m.ref.has_obs=true;}
   qIdx++;
   if(qIdx>=moments.length){mode="final";show("scFinal");}
   else renderQuestion();
 }
 
-/* ═══ EXPORT ═══ */
-function exportJSON(sess,obs){
-  const out={_meta:{tool:"JW Cockpit marcheur — cadre 2026-08-09 · v0.2",
+/* ═══ EXPORT — v0.3 : « le marcheur ne voit jamais un fichier » (wireframe 18/08, étape 1)
+   Feuille de partage native (Web Share) d'abord ; repli téléchargement si indisponible.
+   StarMark : chaque étoile posée sort dans l'export, récit ou pas. ═══ */
+async function exportJSON(sess,obs){
+  const out={_meta:{tool:"JW Cockpit marcheur — cadre 2026-08-09 · v0.3",
       generated_at:new Date().toISOString(),
       note:"Auto-test du propriétaire — José seul. Marche libre d'habitant, jamais publiée."},
     WalkSession:{...sess,samples:undefined,events:undefined,stars:undefined,
       sample_count:sess.samples.length,star_count:(sess.stars||[]).length},
+    StarMark:(sess.stars||[]).map(s=>({lat:s.lat,lon:s.lon,timestamp:s.timestamp,
+      told_on_spot:!!s.note})),
     LocationSample:sess.samples,InteractionEvent:sess.events,
     FieldObservation:obs};
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}));
-  a.download="JW_COCKPIT_OTT_"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
-  a.click();clearLocal();
+  const name="JW_COCKPIT_OTT_"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:"application/json"});
+  let shared=false;
+  try{
+    const file=new File([blob],name,{type:"application/json"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:name});shared=true;}
+  }catch(e){/* partage annulé ou refusé → repli téléchargement, rien n'est perdu */}
+  if(!shared){
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);a.download=name;a.click();
+  }
+  clearLocal();
+  return shared;
 }
 
 /* ═══ DÉMARRAGE ═══ */
+/* v0.3 — mini-cockpit de l'instant */
+function dropStar(note){
+  if(mode!=="walk"||!lastPos)return null;
+  const c=lastPos.coords;
+  const s={lat:c.latitude,lon:c.longitude,timestamp:new Date().toISOString(),
+    note:note||null,has_obs:false};
+  session.stars.push(s);pushEvent("star",note?"⭐ récit à chaud":"⭐");
+  L.circleMarker([c.latitude,c.longitude],{radius:9,color:"#f5c84b",weight:3,fillColor:"#f5c84b",fillOpacity:.5}).addTo(map);
+  saveLocal(true);
+  return s;
+}
+function openSheet(){
+  if(mode!=="walk")return;
+  $("#sheetMission").textContent="🎯 "+(session&&session.mission_note?
+    session.mission_note:"Ta mission : faire découvrir ton quartier.");
+  const row=$("#lmRow"),fiche=$("#lmFiche");row.innerHTML="";fiche.style.display="none";
+  let near=[];
+  if(lastPos){const c=lastPos.coords;
+    near=LANDMARKS.map(l=>({l,d:hav(c.latitude,c.longitude,l[2],l[3])}))
+      .filter(x=>x.d<=LM_NEAR_M).sort((a,b)=>a.d-b.d).slice(0,4);}
+  if(!near.length){fiche.style.display="block";
+    fiche.textContent="Rien de répertorié à moins de "+LM_NEAR_M+" m — c'est peut-être justement un endroit que seul toi connais.";}
+  near.forEach(x=>{const b=document.createElement("button");b.type="button";b.className="lmchip";
+    b.textContent="◆ "+x.l[0];
+    b.onclick=()=>{fiche.style.display="block";
+      fiche.textContent=x.l[0]+" — "+x.l[1]+", à ~"+Math.round(x.d)+" m.";};
+    row.appendChild(b);});
+  $("#sheetMain").style.display="block";$("#sheetStory").style.display="none";
+  $("#veil").classList.add("on");$("#sheet").classList.add("on");
+}
+function closeSheet(){$("#veil").classList.remove("on");$("#sheet").classList.remove("on");}
+
 document.addEventListener("DOMContentLoaded",()=>{
   if(!initMap())return;
   offerRecovery();
+  map.on("click",openSheet);
   $("#btnAccept").onclick=()=>{$("#sessCode").textContent=newCode();show("scPrep");};
   $("#btnComp").onclick=enableCompass;
   $("#btnGo").onclick=()=>{
     mode="walk";startSession();show("scWalk");moveMapTo("mapHost");
+    $("#walkMission").textContent="🎯 "+(session.mission_note||
+      "Faire découvrir ton quartier à quelqu'un qui le visite.");
+    const h=$("#tapHint");h.style.display="block";setTimeout(()=>{h.style.display="none";},8000);
     tracLine=L.polyline([],{color:"#5db3ff",weight:5,opacity:.9}).addTo(map);
     startWatch();
   };
   $("#btnStar").onclick=()=>{
-    if(mode!=="walk"||!lastPos)return;
-    const c=lastPos.coords;
-    session.stars.push({lat:c.latitude,lon:c.longitude,timestamp:new Date().toISOString()});
-    pushEvent("star","⭐");
-    L.circleMarker([c.latitude,c.longitude],{radius:9,color:"#f5c84b",weight:3,fillColor:"#f5c84b",fillOpacity:.5}).addTo(map);
-    const b=$("#btnStar");b.textContent="⭐ Noté !";setTimeout(()=>b.textContent="⭐ Ici, quelque chose",1400);
+    if(!dropStar(null))return;
+    const b=$("#btnStar");b.textContent="⭐ Notée — elle sortira, quoi qu'il arrive";
+    setTimeout(()=>b.textContent="⭐ Ici, quelque chose",1600);
   };
+  $("#veil").onclick=closeSheet;
+  $("#btnSheetClose").onclick=closeSheet;
+  $("#btnMark").onclick=()=>{if(dropStar(null))closeSheet();};
+  $("#btnRaconte").onclick=()=>{
+    $("#sheetMain").style.display="none";$("#sheetStory").style.display="block";
+    $("#storyTxt").value="";$("#storyTxt").focus();
+  };
+  $("#btnStoryCancel").onclick=()=>{
+    $("#sheetMain").style.display="block";$("#sheetStory").style.display="none";
+  };
+  $("#btnStorySave").onclick=()=>{
+    const t=$("#storyTxt").value.trim();
+    const s=dropStar(t||null);
+    if(s&&t){s.has_obs=true;
+      observations.push({observation_id:"o"+observations.length,
+        session_ref:session.session_id,timestamp:s.timestamp,kind:"other",
+        intent:"other",place_name:null,description:t,ladder_rung:"recit_a_chaud",
+        location:{lat:s.lat,lon:s.lon},is_mandatory:false,captured_while_moving:true,
+        source:"star_button",conventional_ref:null,divergence_gain_m:null,
+        consent_scope:"self"});
+      saveLocal(true);}
+    closeSheet();
+  };
+  document.querySelectorAll("#mConsentSeg button").forEach(b=>{
+    b.onclick=()=>setConsent(b.dataset.c);});
+  $("#mExtraField").addEventListener("input",function(){
+    $("#mConsent").style.display=this.value.trim()?"block":"none";});
+  let fConsentVal="self";
+  document.querySelectorAll("#fConsentSeg button").forEach(b=>{
+    b.onclick=()=>{fConsentVal=b.dataset.c;
+      document.querySelectorAll("#fConsentSeg button").forEach(x=>
+        x.classList.toggle("on",x.dataset.c===fConsentVal));};});
+  $("#closingNote").addEventListener("input",function(){
+    $("#fConsent").style.display=this.value.trim()?"block":"none";});
+  window.getClosingConsent=()=>fConsentVal;
   $("#btnPause").onclick=()=>{
+    closeSheet();
     elapsedMs=walkedMs();runSince=null;pauseSince=Date.now();mode="paused";
     stopWatch();pushEvent("pause",null);
     $("#pauseFor").textContent="en pause depuis 0 min";show("scPause");
@@ -553,6 +797,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
   $("#btnArrive").onclick=()=>{
     if(!confirm("Arrivée — terminer l'enregistrement ?"))return;
+    closeSheet();
     clearInterval(tick);stopWatch();
     elapsedMs=walkedMs();runSince=null;
     session.ended_at=new Date().toISOString();session.end_reason="user_finished";
@@ -564,22 +809,32 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#btnWipeEnd").onclick=()=>wipeAll("final");
   $("#btnQSkip").onclick=()=>recordAnswer(true);
   $("#btnQNext").onclick=()=>recordAnswer(false);
-  $("#btnSend").onclick=()=>{
+  $("#btnSend").onclick=async()=>{
     session.closing_note=$("#closingNote").value.trim()||null;
+    session.closing_note_consent=session.closing_note?window.getClosingConsent():null;
     session.storage_choice="transmit";
-    exportJSON(session,observations);
-    $("#doneTxt").textContent="Marche enregistrée ("+session.samples.length+" points, "+
-      observations.length+" réponse"+(observations.length>1?"s":"")+" de débrief). "+
-      "Le fichier est sur ton téléphone. Ce qui sera envoyé au corpus sera supprimé dès agrégation, "+
-      "au plus tard sous 90 jours.";
+    const code=session.session_id,pts=session.samples.length,n=observations.length;
     mode="done";show("scDone");
+    $("#doneTxt").textContent="Un instant — préparation de ta marche…";
+    const shared=await exportJSON(session,observations);
+    $("#doneTxt").textContent=(shared?
+      "Bien reçue, merci ✓ Envoie ta marche par Mail ou dépose-la dans Fichiers / Drive depuis la feuille de partage. ":
+      "Ta marche est prête ✓ (feuille de partage indisponible — le fichier est dans Téléchargements). ")+
+      "Reçu : "+code+" · "+pts+" points, "+n+" observation"+(n>1?"s":"")+". "+
+      "Ce qui rejoint le corpus est supprimé dès agrégation, au plus tard sous 90 jours.";
   };
-  $("#btnKeep").onclick=()=>{
+  $("#btnKeep").onclick=async()=>{
     session.closing_note=$("#closingNote").value.trim()||null;
+    session.closing_note_consent=session.closing_note?window.getClosingConsent():null;
     session.storage_choice="keep_local";
-    exportJSON(session,observations);
-    $("#doneTxt").textContent="Marche gardée pour toi — le fichier est sur ton téléphone, rien n'est transmis.";
+    const code=session.session_id;
     mode="done";show("scDone");
+    $("#doneTxt").textContent="Un instant — préparation de ta marche…";
+    const shared=await exportJSON(session,observations);
+    $("#doneTxt").textContent=(shared?
+      "Marche gardée pour toi ✓ Range-la où tu veux depuis la feuille de partage — rien n'est transmis. ":
+      "Marche gardée pour toi ✓ Le fichier est dans Téléchargements — rien n'est transmis. ")+
+      "Reçu : "+code+".";
   };
 });
 </script>
