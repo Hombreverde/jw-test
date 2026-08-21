@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.3.2)</title>
+<title>JW — Cockpit marcheur (prototype v0.3.3)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#12161c">
@@ -117,7 +117,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live">v0.3.2 ⭐</span></header>
+    <span class="chip live">v0.3.3 ⭐</span></header>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -192,6 +192,7 @@
         <button id="btnStoryCancel" class="ghost mini">Annuler</button>
       </div>
     </div>
+    <p class="dicte" id="sheetVer" style="margin:10px 0 0;text-align:right"></p>
   </div>
 </section>
 
@@ -274,7 +275,7 @@
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.3.2", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.3.3", SAVE_KEY="jw_cockpit_inprogress";
 let lastTouchMs=0; const EXPLORE_MS=15000, FOLLOW_Z=17;
 
 /* v0.3 — landmarks pour « Ici, autour de toi » (OSM, curation 18/08 — Ottawa centre ;
@@ -727,6 +728,7 @@ function openSheet(){
       fiche.textContent=x.l[0]+" — "+x.l[1]+", à ~"+Math.round(x.d)+" m.";};
     row.appendChild(b);});
   $("#sheetMain").style.display="block";$("#sheetStory").style.display="none";
+  $("#sheetVer").textContent=APP_VERSION; /* v0.3.3 — la version testée, visible en marche */
   $("#veil").classList.add("on");$("#sheet").classList.add("on");
   /* v0.3.2 — ceinture et bretelles : le style inline double la classe (fermeture
      restée coincée sur le terrain le 21/08 malgré le retrait de classe) */
@@ -779,7 +781,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   sheetTap("#btnStoryCancel",()=>{
     $("#sheetMain").style.display="block";$("#sheetStory").style.display="none";
   });
-  sheetTap("#btnStorySave",()=>{
+  sheetTap("#btnStorySave",()=>{try{
     const ta=$("#storyTxt");ta.blur();
     const t=ta.value.trim();
     const s=dropStar(t||null);
@@ -801,7 +803,11 @@ document.addEventListener("DOMContentLoaded",()=>{
     const b=$("#btnStar");
     b.textContent=t?"✓ Récit gardé — ⭐ posée":"⭐ Notée !";
     setTimeout(()=>b.textContent="⭐ Ici, quelque chose",2200);
-  });
+  }catch(err){ /* v0.3.3 — une erreur ne reste JAMAIS silencieuse */
+    const f=$("#lmFiche");f.style.display="block";
+    f.textContent="Erreur à l'enregistrement : "+(err&&err.message?err.message:err)+
+      " — ton texte est toujours là, fais une capture de ce message.";
+  }});
   document.querySelectorAll("#mConsentSeg button").forEach(b=>{
     b.onclick=()=>setConsent(b.dataset.c);});
   $("#mExtraField").addEventListener("input",function(){
