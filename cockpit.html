@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.3.5)</title>
+<title>JW — Cockpit marcheur (prototype v0.3.6)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#12161c">
@@ -92,11 +92,15 @@
     padding:7px 10px;border-radius:10px;text-align:center}
   .veil{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;z-index:1199}
   .veil.on{display:block}
+  /* v0.3.6 — la fermeture ne repose PLUS sur transform/transition : terrain du 24/08,
+     le voile se cachait (display) mais la glissade n'était jamais appliquée par iOS —
+     feuille plantée a l'écran, boutons crus morts alors que 23 étoiles s'enregistraient.
+     display:none ne peut pas échouer. */
   .sheet{position:absolute;left:0;right:0;bottom:0;z-index:1200;background:var(--card);
     border-top:2px solid var(--acc);border-radius:20px 20px 0 0;
     padding:12px 16px calc(env(safe-area-inset-bottom) + 14px);
-    transform:translateY(105%);transition:transform .22s ease;max-height:72%;overflow-y:auto}
-  .sheet.on{transform:translateY(0)}
+    display:none;max-height:72%;overflow-y:auto}
+  .sheet.on{display:block}
   .grab{width:44px;height:5px;border-radius:99px;background:var(--line);margin:0 auto 10px}
   .sheet .mline{font-size:14px;font-weight:600;color:var(--ok);margin:0 0 8px}
   .lmrow{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 10px}
@@ -117,7 +121,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live">v0.3.5 ⭐</span></header>
+    <span class="chip live">v0.3.6 ⭐</span></header>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -275,7 +279,7 @@
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.3.5", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.3.6", SAVE_KEY="jw_cockpit_inprogress";
 let lastTouchMs=0; const EXPLORE_MS=15000, FOLLOW_Z=17;
 
 /* v0.3 — landmarks pour « Ici, autour de toi » (OSM, curation 18/08 — Ottawa centre ;
@@ -730,13 +734,13 @@ function openSheet(){
   $("#sheetMain").style.display="block";$("#sheetStory").style.display="none";
   $("#sheetVer").textContent=APP_VERSION; /* v0.3.3 — la version testée, visible en marche */
   $("#veil").classList.add("on");$("#sheet").classList.add("on");
-  /* v0.3.2 — ceinture et bretelles : le style inline double la classe (fermeture
-     restée coincée sur le terrain le 21/08 malgré le retrait de classe) */
-  $("#veil").style.display="block";$("#sheet").style.transform="translateY(0)";
+  /* v0.3.6 — display est l'unique vérité, en classe ET en inline */
+  $("#veil").style.display="block";$("#sheet").style.display="block";
 }
 function closeSheet(){
   $("#veil").classList.remove("on");$("#sheet").classList.remove("on");
-  $("#veil").style.display="none";$("#sheet").style.transform="translateY(105%)";
+  /* v0.3.6 — display:none ne peut pas rester affiché (l'animation, si) */
+  $("#veil").style.display="none";$("#sheet").style.display="none";
   $("#sheet").style.bottom=""; /* v0.3.4 — défaire l'arrimage clavier */
 }
 
