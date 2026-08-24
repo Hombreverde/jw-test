@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.3.3)</title>
+<title>JW — Cockpit marcheur (prototype v0.3.4)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#12161c">
@@ -117,7 +117,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live">v0.3.3 ⭐</span></header>
+    <span class="chip live">v0.3.4 ⭐</span></header>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -275,7 +275,7 @@
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.3.3", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.3.4", SAVE_KEY="jw_cockpit_inprogress";
 let lastTouchMs=0; const EXPLORE_MS=15000, FOLLOW_Z=17;
 
 /* v0.3 — landmarks pour « Ici, autour de toi » (OSM, curation 18/08 — Ottawa centre ;
@@ -737,6 +737,7 @@ function openSheet(){
 function closeSheet(){
   $("#veil").classList.remove("on");$("#sheet").classList.remove("on");
   $("#veil").style.display="none";$("#sheet").style.transform="translateY(105%)";
+  $("#sheet").style.bottom=""; /* v0.3.4 — défaire l'arrimage clavier */
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
@@ -774,16 +775,31 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#veil").onclick=closeSheet;
   sheetTap("#btnSheetClose",closeSheet);
   sheetTap("#btnMark",()=>{if(dropStar(null))closeSheet();});
+  /* v0.3.4 — filet brouillon : chaque frappe/dictée est copiée sur-le-champ ;
+     un toucher perdu, une feuille fermée ou un plantage ne jettent plus un récit */
+  const DRAFT_KEY="jw_cockpit_story_draft";
+  let storyDraft="";try{storyDraft=localStorage.getItem(DRAFT_KEY)||"";}catch(e){}
+  function clearStoryDraft(){storyDraft="";try{localStorage.removeItem(DRAFT_KEY);}catch(e){}}
+  $("#storyTxt").addEventListener("input",function(){storyDraft=this.value;
+    try{localStorage.setItem(DRAFT_KEY,storyDraft);}catch(e){}});
   sheetTap("#btnRaconte",()=>{
     $("#sheetMain").style.display="none";$("#sheetStory").style.display="block";
-    $("#storyTxt").value="";$("#storyTxt").focus();
+    /* v0.3.4 — un brouillon jamais sauvé revient au lieu d'être perdu */
+    $("#storyTxt").value=storyDraft||"";$("#storyTxt").focus();
   });
   sheetTap("#btnStoryCancel",()=>{
+    clearStoryDraft();$("#storyTxt").value=""; /* v0.3.4 — Annuler = choix explicite */
     $("#sheetMain").style.display="block";$("#sheetStory").style.display="none";
   });
-  sheetTap("#btnStorySave",()=>{try{
-    const ta=$("#storyTxt");ta.blur();
-    const t=ta.value.trim();
+  /* v0.3.4 — sauvegarde extraite : appelée par le bouton ET par le filet global.
+     Le texte est lu AVANT blur() — iOS peut jeter une dictée non validée au blur. */
+  let storySaveLock=false;
+  function saveStory(){if(storySaveLock)return;storySaveLock=true;
+    setTimeout(()=>storySaveLock=false,700);
+    try{
+    const ta=$("#storyTxt");
+    const t=(ta.value||storyDraft||"").trim();
+    ta.blur();
     const s=dropStar(t||null);
     if(!s){ /* v0.3.1 — GPS/état pas prêt : on n'avale JAMAIS un récit en silence */
       const f=$("#lmFiche");f.style.display="block";
@@ -798,6 +814,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         source:"star_button",conventional_ref:null,divergence_gain_m:null,
         consent_scope:"self"});
       saveLocal(true);}
+    clearStoryDraft(); /* v0.3.4 — récit en sécurité, le filet brouillon peut lâcher */
     /* v0.3.2 — fermer TOUT DE SUITE, confirmer sur l'écran de marche (carte pleine vue) */
     closeSheet();
     const b=$("#btnStar");
@@ -807,7 +824,28 @@ document.addEventListener("DOMContentLoaded",()=>{
     const f=$("#lmFiche");f.style.display="block";
     f.textContent="Erreur à l'enregistrement : "+(err&&err.message?err.message:err)+
       " — ton texte est toujours là, fais une capture de ce message.";
-  }});
+  }}
+  sheetTap("#btnStorySave",saveStory);
+  /* v0.3.4 — clavier iOS : le viewport visuel se décale et le bouton AFFICHÉ n'est
+     plus le bouton RÉEL (toucher perdu « rien du tout », bug terrain 24/08).
+     (a) la feuille reste arrimée au bas du viewport VISUEL tant qu'elle est ouverte */
+  if(window.visualViewport){
+    const vv=window.visualViewport,sh=$("#sheet");
+    const ancre=()=>{if(!sh.classList.contains("on")){sh.style.bottom="";return;}
+      const off=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
+      sh.style.bottom=off+"px";};
+    vv.addEventListener("resize",ancre);vv.addEventListener("scroll",ancre);
+  }
+  /* (b) filet global : tout toucher qui retombe sur (ou près de) « Garder ce récit »
+     pendant la vue récit déclenche la sauvegarde, même si iOS a égaré la cible */
+  document.addEventListener("touchend",e=>{
+    if($("#sheetStory").style.display!=="block")return;
+    const t=e.changedTouches&&e.changedTouches[0];if(!t)return;
+    const r=$("#btnStorySave").getBoundingClientRect(),m=24;
+    if(t.clientX>=r.left-m&&t.clientX<=r.right+m&&
+       t.clientY>=r.top-m&&t.clientY<=r.bottom+m){
+      if(e.cancelable)e.preventDefault();saveStory();}
+  },{passive:false});
   document.querySelectorAll("#mConsentSeg button").forEach(b=>{
     b.onclick=()=>setConsent(b.dataset.c);});
   $("#mExtraField").addEventListener("input",function(){
