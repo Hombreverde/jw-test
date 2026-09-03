@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.3.7)</title>
+<title>JW — Cockpit marcheur (prototype v0.3.8)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#12161c">
@@ -64,15 +64,19 @@
   .row button{flex:1;margin-top:0}
   button.mini{min-height:48px;font-size:16px}
 
-  /* v0.3.7 — terrain du 03/09 : au soleil, sur un ecran d'iPhone 14, Myriam ne
-     trouvait pas la fenetre d'ecriture. Le champ etait #161c24 sur #1b212a :
-     contraste 1,06:1, bordure 1,31:1. En dessous de 3:1, la boite n'a pas de bord.
-     Bordure portee a 7,2:1, champ agrandi, curseur dore et epais. */
-  textarea,input[type=text]{width:100%;background:#0b0f15;border:2px solid var(--acc);border-radius:12px;
-    color:var(--ink);font:inherit;font-size:18px;padding:14px;
-    caret-color:var(--star);box-shadow:0 0 0 3px rgba(93,179,255,.16)}
-  textarea:focus,input[type=text]:focus{outline:none;border-color:var(--star);
-    box-shadow:0 0 0 4px rgba(245,200,75,.28)}
+  /* v0.3.8 — terrain du 03/09, seconde lecon (Jose) : l'ecran de l'iPhone 14 de
+     Myriam BAISSAIT a mesure que la batterie se vidait. Le soleil reflechi par la
+     vitre ajoute une constante aux deux couleurs : ce sont les SOMBRES qu'il ecrase.
+     Modelise : v0.3.7 (champ sombre) retombait a 2,8:1 au soleil — sous le seuil
+     des 3. Un champ BLANC tient a 3,8:1, texte 5,3:1. C'est le papier : fond clair,
+     encre sombre. (Et rien ne sauve un ecran baisse en plein soleil — d'ou la ligne
+     « batterie chargee, luminosite montee » ajoutee au Kit du marcheur.) */
+  textarea,input[type=text]{width:100%;background:#ffffff;border:2.5px solid #0a58a6;border-radius:12px;
+    color:#10141a;font:inherit;font-size:20px;padding:14px;
+    caret-color:#0a58a6;box-shadow:0 0 0 3px rgba(255,255,255,.25)}
+  textarea::placeholder,input[type=text]::placeholder{color:#556070}
+  textarea:focus,input[type=text]:focus{outline:none;border-color:#8a5a00;
+    box-shadow:0 0 0 4px rgba(245,200,75,.45)}
   textarea{min-height:120px;resize:vertical;line-height:1.45}
   .dicte{font-size:13px;color:var(--dim);margin:6px 0 14px}
   .opts{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
@@ -128,7 +132,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live">v0.3.7 ⭐</span></header>
+    <span class="chip live">v0.3.8 ⭐</span></header>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -286,7 +290,7 @@
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.3.7", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.3.8", SAVE_KEY="jw_cockpit_inprogress";
 /* v0.3.7 — boite de depot (wireframe du 18/08, etape 2 ; GO Jose du 03/09).
    Vide = pas de depot, on retombe sur la feuille de partage native comme avant.
    L'adresse complete, jeton compris, est donnee par install_jw_depot.sh. */
