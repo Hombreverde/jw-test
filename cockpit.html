@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.3.6)</title>
+<title>JW — Cockpit marcheur (prototype v0.3.7)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#12161c">
@@ -64,9 +64,16 @@
   .row button{flex:1;margin-top:0}
   button.mini{min-height:48px;font-size:16px}
 
-  textarea,input[type=text]{width:100%;background:#161c24;border:1.5px solid var(--line);border-radius:12px;
-    color:var(--ink);font:inherit;font-size:16px;padding:12px}
-  textarea{min-height:80px;resize:vertical}
+  /* v0.3.7 — terrain du 03/09 : au soleil, sur un ecran d'iPhone 14, Myriam ne
+     trouvait pas la fenetre d'ecriture. Le champ etait #161c24 sur #1b212a :
+     contraste 1,06:1, bordure 1,31:1. En dessous de 3:1, la boite n'a pas de bord.
+     Bordure portee a 7,2:1, champ agrandi, curseur dore et epais. */
+  textarea,input[type=text]{width:100%;background:#0b0f15;border:2px solid var(--acc);border-radius:12px;
+    color:var(--ink);font:inherit;font-size:18px;padding:14px;
+    caret-color:var(--star);box-shadow:0 0 0 3px rgba(93,179,255,.16)}
+  textarea:focus,input[type=text]:focus{outline:none;border-color:var(--star);
+    box-shadow:0 0 0 4px rgba(245,200,75,.28)}
+  textarea{min-height:120px;resize:vertical;line-height:1.45}
   .dicte{font-size:13px;color:var(--dim);margin:6px 0 14px}
   .opts{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
   .opt{display:flex;align-items:center;gap:11px;padding:14px;background:#161c24;border:1.5px solid var(--line);
@@ -121,7 +128,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live">v0.3.6 ⭐</span></header>
+    <span class="chip live">v0.3.7 ⭐</span></header>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -279,7 +286,11 @@
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.3.6", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.3.7", SAVE_KEY="jw_cockpit_inprogress";
+/* v0.3.7 — boite de depot (wireframe du 18/08, etape 2 ; GO Jose du 03/09).
+   Vide = pas de depot, on retombe sur la feuille de partage native comme avant.
+   L'adresse complete, jeton compris, est donnee par install_jw_depot.sh. */
+const DEPOT_URL="";
 let lastTouchMs=0; const EXPLORE_MS=15000, FOLLOW_Z=17;
 
 /* v0.3 — landmarks pour « Ici, autour de toi » (OSM, curation 18/08 — Ottawa centre ;
@@ -434,7 +445,7 @@ function onPos(pos){
     latitude:c.latitude,longitude:c.longitude,horizontal_accuracy_m:Math.round(c.accuracy),
     speed_mps:c.speed==null?null:+c.speed.toFixed(2),heading_deg:heading==null?null:Math.round(heading),
     source_state:document.visibilityState==="visible"?"foreground":"background",
-    quality_flag:c.accuracy<=25?"ok":"low_accuracy"});
+    quality_flag:c.accuracy<=10?"ok":"low_accuracy"});
   if(tracLine)tracLine.addLatLng([c.latitude,c.longitude]);
   saveLocal(false);
 }
@@ -530,8 +541,14 @@ function detectDivergences(samples,convLine){
 function finishEpi(epi,out){
   const dur=(new Date(epi.pts[epi.pts.length-1].timestamp)-new Date(epi.t0))/1000;
   if(dur<DIVERGE_S)return;
-  let walked=0;for(let i=1;i<epi.pts.length;i++)
-    walked+=hav(epi.pts[i-1].latitude,epi.pts[i-1].longitude,epi.pts[i].latitude,epi.pts[i].longitude);
+  /* v0.3.7 — le 03/09, deux telephones cote a cote ont mesure 2 777 m et 3 392 m
+     de la MEME marche. Filtres a 10 m de precision : 2 683 et 2 684 m — un metre
+     d'ecart. Le bruit s'integrait dans la distance. On garde TOUS les points a
+     l'export (ce sont des preuves), mais on ne CALCULE plus sur les mauvais. */
+  const bons=epi.pts.filter(p=>(p.horizontal_accuracy_m==null)||p.horizontal_accuracy_m<=10);
+  const base=bons.length>=2?bons:epi.pts;
+  let walked=0;for(let i=1;i<base.length;i++)
+    walked+=hav(base[i-1].latitude,base[i-1].longitude,base[i].latitude,base[i].longitude);
   const conv=Math.abs((epi.a1||0)-(epi.a0||0));
   const m=epi.pts[Math.floor(epi.pts.length/2)];
   out.push({type:"divergence",lat:m.latitude,lon:m.longitude,timestamp:m.timestamp,
@@ -677,7 +694,8 @@ function recordAnswer(skipped){
 /* ═══ EXPORT — v0.3 : « le marcheur ne voit jamais un fichier » (wireframe 18/08, étape 1)
    Feuille de partage native (Web Share) d'abord ; repli téléchargement si indisponible.
    StarMark : chaque étoile posée sort dans l'export, récit ou pas. ═══ */
-async function exportJSON(sess,obs){
+async function exportJSONLocal(sess,obs){return exportJSON(sess,obs,true);}
+async function exportJSON(sess,obs,localSeulement){
   const out={_meta:{tool:"JW Cockpit marcheur — cadre 2026-08-09 · v0.3",
       generated_at:new Date().toISOString(),
       note:"Auto-test du propriétaire — José seul. Marche libre d'habitant, jamais publiée."},
@@ -687,8 +705,24 @@ async function exportJSON(sess,obs){
       told_on_spot:!!s.note})),
     LocationSample:sess.samples,InteractionEvent:sess.events,
     FieldObservation:obs};
-  const name="JW_COCKPIT_OTT_"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
-  const blob=new Blob([JSON.stringify(out,null,2)],{type:"application/json"});
+  /* v0.3.7 — un nom qu'un humain peut lire. Le 03/09, la feuille de partage a
+     tendu a Myriam « JW_COCKPIT_OTT_2026-09-03T18-16-43-375Z.json ». */
+  const d=new Date(), mois=["janvier","février","mars","avril","mai","juin","juillet",
+    "août","septembre","octobre","novembre","décembre"];
+  const name="Ma marche — "+d.getDate()+" "+mois[d.getMonth()]+".json";
+  const texte=JSON.stringify(out,null,2);
+  const blob=new Blob([texte],{type:"application/json"});
+
+  /* 1. Le depot : le marcheur ne voit jamais un fichier. */
+  if(DEPOT_URL&&!localSeulement){
+    try{
+      const r=await fetch(DEPOT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:texte});
+      if(r.ok){const j=await r.json().catch(()=>({}));
+        if(j&&j.ok){clearLocal();return "depot";}}
+    }catch(e){/* pas de reseau : on retombe sur le partage, rien n'est perdu */}
+  }
+
+  /* 2. Repli : la feuille de partage native. */
   let shared=false;
   try{
     const file=new File([blob],name,{type:"application/json"});
@@ -699,15 +733,41 @@ async function exportJSON(sess,obs){
     const a=document.createElement("a");
     a.href=URL.createObjectURL(blob);a.download=name;a.click();
   }
-  clearLocal();
-  return shared;
+  /* v0.3.7 — le filet ne saute QUE si la marche est reellement sortie.
+     Avant, clearLocal() etait inconditionnel : un partage annule effacait le filet
+     (le wireframe du 18/08 disait deja « en cas d'echec, rien n'est perdu »). */
+  if(shared)clearLocal();
+  return shared?"partage":"telechargement";
 }
 
 /* ═══ DÉMARRAGE ═══ */
 /* v0.3 — mini-cockpit de l'instant */
+const STAR_DEDUP_S=90, STAR_DEDUP_M=25;
+/* v0.3.7 — renvoie l'etoile deja posee tout pres et tout a l'heure, sinon null. */
+function etoileVoisine(c){
+  const now=Date.now();
+  for(let i=(session.stars||[]).length-1;i>=0;i--){
+    const s=session.stars[i];
+    if((now-new Date(s.timestamp).getTime())/1000>STAR_DEDUP_S)break;
+    if(hav(c.latitude,c.longitude,s.lat,s.lon)<=STAR_DEDUP_M)return s;
+  }
+  return null;
+}
 function dropStar(note){
   if(mode!=="walk"||!lastPos)return null;
   const c=lastPos.coords;
+  /* Deja notee ici, il y a un instant : on n'en cree pas une seconde.
+     Si celle-ci apporte un recit et que l'ancienne n'en avait pas, on l'enrichit. */
+  const dejaLa=etoileVoisine(c);
+  /* Regle : un RECIT ne se perd jamais. On ne fusionne que si le nouveau geste
+     n'apporte pas de recit, ou si l'ancienne etoile n'en avait pas encore.
+     Deux recits au meme endroit sont deux observations, pas un doublon. */
+  if(dejaLa&&!(note&&dejaLa.note)){
+    if(note){dejaLa.note=note;pushEvent("star","⭐ récit à chaud");saveLocal(true);}
+    else pushEvent("star_doublon","⭐ déjà notée ici");
+    dejaLa.doublon=true;
+    return dejaLa;
+  }
   const s={lat:c.latitude,lon:c.longitude,timestamp:new Date().toISOString(),
     note:note||null,has_obs:false};
   session.stars.push(s);pushEvent("star",note?"⭐ récit à chaud":"⭐");
@@ -715,8 +775,18 @@ function dropStar(note){
   saveLocal(true);
   return s;
 }
+let dernierUsageFeuille=Date.now(), repereMinuteur=null;
+function montrerRepere(ms,texte){
+  const h=$("#tapHint");if(!h)return;
+  h.textContent=texte||"Touche la carte : elle ouvre ton espace.";
+  h.style.display="block";
+  clearTimeout(repereMinuteur);
+  repereMinuteur=setTimeout(()=>{h.style.display="none";},ms||7000);
+}
 function openSheet(){
   if(mode!=="walk")return;
+  dernierUsageFeuille=Date.now();
+  clearTimeout(repereMinuteur);$("#tapHint").style.display="none";
   $("#sheetMission").textContent="🎯 "+(session&&session.mission_note?
     session.mission_note:"Ta mission : faire découvrir ton quartier.");
   const row=$("#lmRow"),fiche=$("#lmFiche");row.innerHTML="";fiche.style.display="none";
@@ -748,19 +818,34 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(!initMap())return;
   offerRecovery();
   map.on("click",openSheet);
+  /* v0.3.7 — le 03/09, Myriam a pince l'ecran a deux doigts pour retrouver la
+     feuille. L'app bloque le zoom (user-scalable=no + gesturestart) : il ne se
+     passait rigoureusement rien, pas meme un refus visible. Desormais le
+     pincement dit ou est la porte. */
+  $("#mapHost").addEventListener("touchstart",e=>{
+    if(e.touches&&e.touches.length>=2&&mode==="walk")
+      montrerRepere(5000,"Un seul doigt suffit — touche la carte pour ouvrir ton espace.");
+  },{passive:true});
   $("#btnAccept").onclick=()=>{$("#sessCode").textContent=newCode();show("scPrep");};
   $("#btnComp").onclick=enableCompass;
   $("#btnGo").onclick=()=>{
     mode="walk";startSession();show("scWalk");moveMapTo("mapHost");
     $("#walkMission").textContent="🎯 "+(session.mission_note||
       "Faire découvrir ton quartier à quelqu'un qui le visite.");
-    const h=$("#tapHint");h.style.display="block";setTimeout(()=>{h.style.display="none";},8000);
+    montrerRepere(9000);
+    /* v0.3.7 — le repere revient de lui-meme tant que la feuille n'a jamais servi,
+       puis toutes les 5 minutes de silence. Terrain du 03/09. */
+    setInterval(()=>{
+      if(mode!=="walk")return;
+      if(Date.now()-dernierUsageFeuille>300000)montrerRepere(7000);
+    },60000);
     tracLine=L.polyline([],{color:"#5db3ff",weight:5,opacity:.9}).addTo(map);
     startWatch();
   };
   $("#btnStar").onclick=()=>{
-    if(!dropStar(null))return;
-    const b=$("#btnStar");b.textContent="⭐ Notée — elle sortira, quoi qu'il arrive";
+    const s=dropStar(null);if(!s)return;
+    const b=$("#btnStar");
+    b.textContent=s.doublon?"⭐ Déjà notée ici — continue":"⭐ Notée — elle sortira, quoi qu'il arrive";
     setTimeout(()=>b.textContent="⭐ Ici, quelque chose",1600);
   };
   /* v0.3.1 — liaison tactile robuste : sur iOS, clavier ouvert, le « click » d'un bouton
@@ -902,9 +987,10 @@ document.addEventListener("DOMContentLoaded",()=>{
     const code=session.session_id,pts=session.samples.length,n=observations.length;
     mode="done";show("scDone");
     $("#doneTxt").textContent="Un instant — préparation de ta marche…";
-    const shared=await exportJSON(session,observations);
-    $("#doneTxt").textContent=(shared?
-      "Bien reçue, merci ✓ Envoie ta marche par Mail ou dépose-la dans Fichiers / Drive depuis la feuille de partage. ":
+    const issue=await exportJSON(session,observations);
+    $("#doneTxt").textContent=(
+      issue==="depot"?"Bien reçue, merci ✓ Ta marche est arrivée en lieu sûr. Tu peux fermer. ":
+      issue==="partage"?"Ta marche est prête ✓ Envoie-la depuis la feuille de partage. ":
       "Ta marche est prête ✓ (feuille de partage indisponible — le fichier est dans Téléchargements). ")+
       "Reçu : "+code+" · "+pts+" points, "+n+" observation"+(n>1?"s":"")+". "+
       "Ce qui rejoint le corpus est supprimé dès agrégation, au plus tard sous 90 jours.";
@@ -916,8 +1002,8 @@ document.addEventListener("DOMContentLoaded",()=>{
     const code=session.session_id;
     mode="done";show("scDone");
     $("#doneTxt").textContent="Un instant — préparation de ta marche…";
-    const shared=await exportJSON(session,observations);
-    $("#doneTxt").textContent=(shared?
+    const issue=await exportJSONLocal(session,observations);
+    $("#doneTxt").textContent=(issue==="partage"?
       "Marche gardée pour toi ✓ Range-la où tu veux depuis la feuille de partage — rien n'est transmis. ":
       "Marche gardée pour toi ✓ Le fichier est dans Téléchargements — rien n'est transmis. ")+
       "Reçu : "+code+".";
