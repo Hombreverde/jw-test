@@ -158,6 +158,7 @@
     <div id="catList"></div>
     <p class="note">Les parcours de Paris sont en cours de préparation avec des marcheurs bénévoles du quartier.
       Seul le parcours d'Ottawa est utilisable aujourd'hui.</p>
+    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.0</p>
   </div>
 </section>
 
@@ -237,7 +238,7 @@
 
 <!-- ═══ 7. FIN ═══ -->
 <section id="scEnd" class="screen">
-  <header><h1>C'est fini — merci</h1></header>
+  <header><h1>C'est fini — merci</h1><span class="chip">v0.6.0 clair</span></header>
   <div class="scroll">
     <p class="lead" id="endSummary">—</p>
     <fieldset><legend>Quel arrêt t'a le plus plu ?</legend><div class="opts" id="favOpts"></div></fieldset>
@@ -604,7 +605,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.5.3",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.6.0-clair80",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Ottawa downtown",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
