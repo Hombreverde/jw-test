@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.4.1)</title>
+<title>JW — Cockpit marcheur (prototype v0.4.2)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#faf8f3">
@@ -140,6 +140,12 @@
      Liseré blanc de 2 px par filtre CSS : aucune seconde trace ni logique ajoutée. */
   #btnSend{background:var(--ok);color:#ffffff;border-color:var(--ok)}
   #btnArrive{background:#290500;color:#ffffff;border-color:#290500}
+  #scWalk>.panel{flex-shrink:0}
+  #btnPause{flex:0 0 auto;width:auto}
+  #arrivalHint{font-weight:400;border-width:1px}
+  #versionBadge{white-space:normal;font-size:11px;max-width:165px}
+  .arrivalSteps{padding:8px 16px;font-size:14px;line-height:1.4}
+  .arrivalSteps p{margin:0 0 6px}
   #btnBackToSave{background:var(--acc);color:#ffffff;border-color:var(--acc)}
   .leaflet-control-attribution{background:#ffffff!important;color:var(--ink)}
   .leaflet-control-attribution a{color:var(--ink)}
@@ -157,7 +163,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live">v0.4.1 ⭐</span></header>
+    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.2</span></header>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -201,15 +207,16 @@
     <button class="wipe" id="btnWipeWalk">Tout effacer</button></header>
   <div class="mstrip" id="walkMission">🎯 Faire découvrir ton quartier à quelqu'un qui le visite.</div>
   <div id="traceAlert" class="tracealert" role="status" aria-live="polite"></div>
+  <div id="arrivalHint" class="tracealert" role="status" aria-live="polite"></div>
   <div class="wakebar"><span id="wakeStatus" role="status"></span>
     <button id="btnWake" class="ghost" aria-pressed="true">Écran libre</button></div>
   <div class="maprow"><div id="mapHost" style="flex:1;display:flex"></div>
     <div class="taphint" id="tapHint" style="display:none">Touche la carte : elle ouvre ton espace.</div></div>
   <div class="panel">
     <button id="btnStar" class="star">⭐ Ici, quelque chose</button>
+    <button id="btnArrive">🏁 Arrivée — je termine ma marche</button>
     <div class="row">
       <button id="btnPause" class="warn mini">Pause</button>
-      <button id="btnArrive" class="mini">Arrivée</button>
     </div>
   </div>
   <!-- v0.3 — mini-cockpit de l'instant : un toucher ouvre l'espace du marcheur -->
@@ -259,6 +266,10 @@
 <!-- ═══ 6. DÉBRIEF ═══ -->
 <section id="scDebrief" class="screen">
   <header><h1>Ton chemin, tes mots</h1></header>
+  <div class="arrivalSteps">
+    <p>Ta marche est gardée sur ce téléphone ; elle part quand tu touches <em>Enregistrer la marche</em>.</p>
+    <p>1 · Arrivée ✓ — 2 · Quelques mots — 3 · Envoyer</p>
+  </div>
   <div class="maprow" style="flex:0 0 34dvh"><div id="mapDebrief" style="flex:1;display:flex"></div></div>
   <div class="scroll">
     <div id="coverageNote" class="coveragenote" role="status"></div>
@@ -357,7 +368,7 @@ function computeTraceCoverage(samples, startedAt, endedAt, { thresholdS = 20 } =
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.4.1", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.4.2", SAVE_KEY="jw_cockpit_inprogress";
 /* v0.3.7 — boite de depot (wireframe du 18/08, etape 2 ; GO Jose du 03/09).
    Vide = pas de depot, on retombe sur la feuille de partage native comme avant.
    L'adresse complete, jeton compris, est donnee par install_jw_depot.sh. */
@@ -503,7 +514,50 @@ async function enableCompass(){
 }
 
 /* ═══ GPS ═══ */
+/* v0.4.2 — aide locale, sans écriture dans la session ni action sur le GPS.
+   Une coupure de plus de 20 s ne constitue pas une preuve d'immobilité.
+   L'ancre évite de confondre une marche à petits pas avec un arrêt. */
+let arrivalStop=null;
+function resetArrivalHint(){
+  arrivalStop=null;
+  const box=$("#arrivalHint");box.style.display="none";box.textContent="";
+}
+function suspendArrivalHint(){
+  if(arrivalStop){arrivalStop.since=null;arrivalStop.lastAt=null;}
+  const box=$("#arrivalHint");box.style.display="none";box.textContent="";
+}
+function updateArrivalHint(pos){
+  if(mode!=="walk"){resetArrivalHint();return;}
+  const c=pos.coords,t=pos.timestamp;
+  if(!Number.isFinite(t)||t<Date.parse(session.started_at)||
+    !Number.isFinite(c.accuracy)||c.accuracy<0||c.accuracy>20||
+    !Number.isFinite(c.latitude)||!Number.isFinite(c.longitude)){
+    suspendArrivalHint();return;
+  }
+  if(arrivalStop&&t<=arrivalStop.lastAt)return;
+  if(!arrivalStop||
+    hav(arrivalStop.lat,arrivalStop.lon,c.latitude,c.longitude)>=15||
+    hav(arrivalStop.lastLat,arrivalStop.lastLon,c.latitude,c.longitude)>=15){
+    resetArrivalHint();
+    arrivalStop={lat:c.latitude,lon:c.longitude,lastLat:c.latitude,lastLon:c.longitude,
+      since:t,lastAt:t,shown:false};
+    return;
+  }
+  if(arrivalStop.lastAt===null||t-arrivalStop.lastAt>20000){
+    suspendArrivalHint();arrivalStop.since=t;
+  }
+  arrivalStop.lastAt=t;
+  arrivalStop.lastLat=c.latitude;arrivalStop.lastLon=c.longitude;
+  if(!arrivalStop.shown&&t-arrivalStop.since>=300000){
+    arrivalStop.shown=true;
+    const box=$("#arrivalHint");
+    box.textContent="Tu es arrivé ? Touche Arrivée pour terminer.";
+    box.style.display="block";
+  }
+}
 function setTraceState(state){
+  if(mode!=="walk")resetArrivalHint();
+  else if(state!=="enregistrement")suspendArrivalHint();
   traceState=state;
   const box=$("#traceAlert");
   box.textContent=state==="trace_interrompue"?
@@ -636,6 +690,7 @@ function onPos(pos){
   // watchPosition peut livrer un premier fix mis en cache avant le Départ (maximumAge).
   if(interrupted)syncTraceCoverage(session,new Date(Math.max(lastFixAt,Date.parse(session.started_at))).toISOString());
   setTraceState("enregistrement");
+  updateArrivalHint(pos);
   if(tracLine)tracLine.addLatLng([c.latitude,c.longitude]);
   saveLocal(interrupted);
 }
@@ -1251,6 +1306,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     if(!confirm("Mettre la marche en pause ? Le GPS s'arrêtera jusqu'à Reprendre."))return;
     closeSheet();
     elapsedMs=walkedMs();runSince=null;pauseSince=Date.now();mode="paused";
+    resetArrivalHint();
     stopWatch();releaseWakeLock();pushEvent("pause",null);
     $("#pauseFor").textContent="en pause depuis 0 min";show("scPause");
   };
@@ -1260,7 +1316,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     show("scWalk");moveMapTo("mapHost");startWatch();acquireWakeLock();
   };
   $("#btnArrive").onclick=()=>{
-    if(!confirm("Arrivée — terminer l'enregistrement ?"))return;
+    if(!confirm("Tu es arrivé ? Terminer la marche."))return;
     closeSheet();
     clearInterval(tick);stopWatch();
     elapsedMs=walkedMs();runSince=null;
