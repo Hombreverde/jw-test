@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.4.2)</title>
+<title>JW — Cockpit marcheur (prototype v0.4.3)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#faf8f3">
@@ -142,7 +142,7 @@
   #btnArrive{background:#290500;color:#ffffff;border-color:#290500}
   #scWalk>.panel{flex-shrink:0}
   #btnPause{flex:0 0 auto;width:auto}
-  #arrivalHint{font-weight:400;border-width:1px}
+  #arrivalHint{font-weight:400;border-width:1px;background:var(--card)}
   #versionBadge{white-space:normal;font-size:11px;max-width:165px}
   .arrivalSteps{padding:8px 16px;font-size:14px;line-height:1.4}
   .arrivalSteps p{margin:0 0 6px}
@@ -163,7 +163,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.2</span></header>
+    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.3</span></header>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -233,6 +233,7 @@
         <button id="btnMark" class="star mini">⭐ Juste marquer</button>
         <button id="btnSheetClose" class="ghost mini">Fermer</button>
       </div>
+      <button id="btnSheetArrive" class="ghost">🏁 Je suis arrivé</button>
     </div>
     <div id="sheetStory" style="display:none">
       <textarea id="storyTxt" placeholder="Une phrase suffit — tu développeras assis, au débrief."></textarea>
@@ -368,7 +369,7 @@ function computeTraceCoverage(samples, startedAt, endedAt, { thresholdS = 20 } =
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.4.2", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.4.3", SAVE_KEY="jw_cockpit_inprogress";
 /* v0.3.7 — boite de depot (wireframe du 18/08, etape 2 ; GO Jose du 03/09).
    Vide = pas de depot, on retombe sur la feuille de partage native comme avant.
    L'adresse complete, jeton compris, est donnee par install_jw_depot.sh. */
@@ -514,37 +515,45 @@ async function enableCompass(){
 }
 
 /* ═══ GPS ═══ */
-/* v0.4.2 — aide locale, sans écriture dans la session ni action sur le GPS.
-   Une coupure de plus de 20 s ne constitue pas une preuve d'immobilité.
-   L'ancre évite de confondre une marche à petits pas avec un arrêt. */
-let arrivalStop=null;
+/* v0.4.3 — deux fixes précis confirment l’ancre ; une suspension au même
+   endroit compte dans l’arrêt. Affichages et retraits sont journalisés. */
+let arrivalStop=null,arrivalCandidate=null,arrivalLastAt=null;
 function resetArrivalHint(){
-  arrivalStop=null;
+  arrivalStop=null;arrivalCandidate=null;arrivalLastAt=null;
   const box=$("#arrivalHint");box.style.display="none";box.textContent="";
 }
-function suspendArrivalHint(){
-  if(arrivalStop){arrivalStop.since=null;arrivalStop.lastAt=null;}
+function suspendArrivalHint(badAccuracy=false){
+  if(badAccuracy){
+    arrivalCandidate=null;
+    if(arrivalStop)arrivalStop.since=null;
+  }
   const box=$("#arrivalHint");box.style.display="none";box.textContent="";
 }
 function updateArrivalHint(pos){
   if(mode!=="walk"){resetArrivalHint();return;}
   const c=pos.coords,t=pos.timestamp;
   if(!Number.isFinite(t)||t<Date.parse(session.started_at)||
-    !Number.isFinite(c.accuracy)||c.accuracy<0||c.accuracy>20||
+    (arrivalLastAt!==null&&t<=arrivalLastAt))return;
+  arrivalLastAt=t;
+  if(!Number.isFinite(c.accuracy)||c.accuracy<0||c.accuracy>20||
     !Number.isFinite(c.latitude)||!Number.isFinite(c.longitude)){
-    suspendArrivalHint();return;
+    suspendArrivalHint(true);return;
   }
-  if(arrivalStop&&t<=arrivalStop.lastAt)return;
-  if(!arrivalStop||
-    hav(arrivalStop.lat,arrivalStop.lon,c.latitude,c.longitude)>=15||
-    hav(arrivalStop.lastLat,arrivalStop.lastLon,c.latitude,c.longitude)>=15){
-    resetArrivalHint();
-    arrivalStop={lat:c.latitude,lon:c.longitude,lastLat:c.latitude,lastLon:c.longitude,
-      since:t,lastAt:t,shown:false};
-    return;
+  if(arrivalStop&&(hav(arrivalStop.lat,arrivalStop.lon,c.latitude,c.longitude)>=15||
+    hav(arrivalStop.lastLat,arrivalStop.lastLon,c.latitude,c.longitude)>=15)){
+    if($("#arrivalHint").style.display==="block")pushEvent("hint_arrivee_retire",null);
+    resetArrivalHint();arrivalLastAt=t;
   }
-  if(arrivalStop.lastAt===null||t-arrivalStop.lastAt>20000){
-    suspendArrivalHint();arrivalStop.since=t;
+  if(!arrivalStop||arrivalStop.since===null){
+    // Deux points rapprochés confirment le premier ; un fix isolé ne suffit pas.
+    if(!arrivalCandidate||t-arrivalCandidate.t>20000||
+      hav(arrivalCandidate.lat,arrivalCandidate.lon,c.latitude,c.longitude)>=15){
+      arrivalCandidate={lat:c.latitude,lon:c.longitude,t};return;
+    }
+    arrivalStop={lat:arrivalCandidate.lat,lon:arrivalCandidate.lon,
+      lastLat:c.latitude,lastLon:c.longitude,since:arrivalCandidate.t,lastAt:t,
+      shown:!!(arrivalStop&&arrivalStop.shown)};
+    arrivalCandidate=null;
   }
   arrivalStop.lastAt=t;
   arrivalStop.lastLat=c.latitude;arrivalStop.lastLon=c.longitude;
@@ -553,6 +562,7 @@ function updateArrivalHint(pos){
     const box=$("#arrivalHint");
     box.textContent="Tu es arrivé ? Touche Arrivée pour terminer.";
     box.style.display="block";
+    pushEvent("hint_arrivee",String(Math.floor((t-arrivalStop.since)/1000)));
   }
 }
 function setTraceState(state){
@@ -995,7 +1005,7 @@ function ensureStarObservations(sess,obs){
 }
 function buildWalkExport(sess,obs){
   ensureStarObservations(sess,obs);syncTraceCoverage(sess,sess.ended_at,true);
-  return{_meta:{tool:"JW Cockpit marcheur — cadre 2026-08-09 · v0.3.10",
+  return{_meta:{tool:"JW Cockpit marcheur — cadre 2026-08-09 · "+APP_VERSION,
       generated_at:new Date().toISOString(),
       note:"Marche libre d'habitant ; partage selon le choix de la session."},
     WalkSession:{...sess,samples:undefined,events:undefined,stars:undefined,
@@ -1157,6 +1167,7 @@ function closeSheet(){
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
+  $("#versionBadge").textContent=APP_VERSION;
   if(!initMap())return;
   offerRecovery();
   map.on("click",openSheet);
@@ -1210,6 +1221,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
   $("#veil").onclick=closeSheet;
   sheetTap("#btnSheetClose",closeSheet);
+  sheetTap("#btnSheetArrive",()=>{closeSheet();$("#btnArrive").onclick();});
   sheetTap("#btnMark",()=>{if(dropStar(null))closeSheet();});
   /* v0.3.4 — filet brouillon : chaque frappe/dictée est copiée sur-le-champ ;
      un toucher perdu, une feuille fermée ou un plantage ne jettent plus un récit */
