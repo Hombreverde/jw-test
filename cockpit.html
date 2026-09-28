@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.4.4)</title>
+<title>JW — Cockpit marcheur (prototype v0.4.5)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#faf8f3">
@@ -151,6 +151,8 @@
   #arrivalHint,#departureHint{display:none;font-size:15px;line-height:1.4;font-weight:400;
     padding:9px 12px;margin-top:9px;border:1px solid #b77912;border-radius:10px;
     background:#fff2ce;color:#171712}
+  .savealert{display:none;background:#a01818;color:#fff;border:2px solid #7a1010;
+    border-radius:10px;padding:9px 12px;margin:9px 0;font-size:15px;line-height:1.4;flex-shrink:0}
   #departureHint{background:#e5f5e9;border-color:#23733e}
   #versionBadge{white-space:normal;font-size:11px;max-width:165px}
   .arrivalSteps{padding:8px 16px;font-size:14px;line-height:1.4}
@@ -172,7 +174,8 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.4</span></header>
+    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.5</span></header>
+  <div class="savealert" role="alert"></div>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
     <h2 class="big">On enregistre le chemin,<br>pas la personne.</h2>
@@ -195,6 +198,7 @@
 <!-- ═══ 2. PRÉPARATION ═══ -->
 <section id="scPrep" class="screen">
   <header><h1>Préparer la marche</h1></header>
+  <div class="savealert" role="alert"></div>
   <div class="scroll">
     <p class="eyebrow">Ton code de session — rien d'autre ne t'identifie</p>
     <div class="codebox" id="sessCode">JW-OTT-····</div>
@@ -224,6 +228,7 @@
     <button id="btnStar" class="star">⭐ Ici, quelque chose</button>
     <div id="departureHint" role="status" aria-live="polite"></div>
     <div id="arrivalHint" role="status" aria-live="polite"></div>
+    <div id="saveAlert" class="savealert" role="alert"></div>
     <button id="btnArrive">🏁 Arrivée — je termine ma marche</button>
     <div class="row">
       <button id="btnPause" class="warn mini">Pause</button>
@@ -260,6 +265,7 @@
 <!-- ═══ 4. PAUSE ═══ -->
 <section id="scPause" class="screen">
   <header><h1>Marche en pause</h1></header>
+  <div class="savealert" role="alert"></div>
   <div class="pausewrap"><div>
     <p class="big">⏸</p>
     <p class="lead">Le GPS ne t'enregistre plus.<br>Reprends quand tu veux — rien n'est perdu.</p>
@@ -271,12 +277,14 @@
 <!-- ═══ 5. ANALYSE ═══ -->
 <section id="scAnalyse" class="screen">
   <header><h1>Un instant…</h1></header>
+  <div class="savealert" role="alert"></div>
   <div class="spin" id="spinTxt">Je compare ton chemin avec l'itinéraire<br>qu'une carte aurait proposé…</div>
 </section>
 
 <!-- ═══ 6. DÉBRIEF ═══ -->
 <section id="scDebrief" class="screen">
   <header><h1>Ton chemin, tes mots</h1></header>
+  <div class="savealert" role="alert"></div>
   <div class="arrivalSteps">
     <p>Ta marche est gardée sur ce téléphone ; elle part quand tu touches <em>Enregistrer la marche</em>.</p>
     <p>1 · Arrivée ✓ — 2 · Quelques mots — 3 · Envoyer</p>
@@ -310,6 +318,7 @@
 <!-- ═══ 7. FINAL ═══ -->
 <section id="scFinal" class="screen">
   <header><h1>Dernière question</h1></header>
+  <div class="savealert" role="alert"></div>
   <div class="scroll">
     <div id="coverageFinal" class="coveragenote" role="status"></div>
     <h2 class="big">Qu'est-ce que les visiteurs louperaient sans toi ?</h2>
@@ -335,6 +344,7 @@
 <!-- ═══ 8. FIN ═══ -->
 <section id="scDone" class="screen">
   <header><h1>Merci</h1></header>
+  <div class="savealert" role="alert"></div>
   <div class="scroll"><p class="lead" id="doneTxt" role="status" aria-live="polite">—</p>
     <button id="btnSendOther" style="display:none">Envoyer autrement</button>
     <button id="btnBackToSave" class="ghost" style="display:none">Revenir à ma marche</button></div>
@@ -379,7 +389,7 @@ function computeTraceCoverage(samples, startedAt, endedAt, { thresholdS = 20 } =
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.4.4", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.4.5", SAVE_KEY="jw_cockpit_inprogress";
 /* v0.3.7 — boite de depot (wireframe du 18/08, etape 2 ; GO Jose du 03/09).
    Vide = pas de depot, on retombe sur la feuille de partage native comme avant.
    L'adresse complete, jeton compris, est donnee par install_jw_depot.sh. */
@@ -737,18 +747,74 @@ function onPos(pos){
   saveLocal(interrupted);
 }
 
-/* ═══ FILET (écriture seule, reprise v0.5.1) ═══ */
-function saveLocal(force){
-  if(!session)return;const now=Date.now();
-  if(!force&&now-lastSave<15000)return;lastSave=now;
-  try{localStorage.setItem(SAVE_KEY,JSON.stringify({session,observations,elapsedMs:walkedMs(),savedAt:now}));}
-  catch(e){}
+/* ═══ FILET — v0.4.5 : IndexedDB, transactions ordonnées et migration 0.4.4 ═══ */
+const BACKUP_DB="jw_cockpit_backup", BACKUP_STORE="walk";
+const SAVE_FAILURE="⚠ Ta marche n'est plus sauvegardée sur le téléphone. Touche Arrivée puis Envoyer maintenant.";
+let backupQueue=Promise.resolve(), backupFailed=false;
+function backupStatus(failed){
+  backupFailed=failed;
+  document.querySelectorAll(".savealert").forEach(box=>{
+    box.textContent=failed?SAVE_FAILURE:"";box.style.display=failed?"block":"none";
+  });
 }
-function clearLocal(){try{localStorage.removeItem(SAVE_KEY);}catch(e){}}
-function offerRecovery(){
-  let raw=null;try{raw=localStorage.getItem(SAVE_KEY);}catch(e){return;}
-  if(!raw)return;let d=null;try{d=JSON.parse(raw);}catch(e){clearLocal();return;}
-  if(!d||!d.session||!(d.session.samples||[]).length){clearLocal();return;}
+function backupAccess(action,value){
+  return new Promise((resolve,reject)=>{
+    const request=indexedDB.open(BACKUP_DB,1);
+    let abandoned=false;
+    request.onupgradeneeded=()=>request.result.createObjectStore(BACKUP_STORE);
+    request.onerror=()=>reject(request.error);
+    request.onblocked=()=>{abandoned=true;reject(new Error("Sauvegarde bloquée"));};
+    request.onsuccess=()=>{
+      const db=request.result;
+      if(abandoned){db.close();return;}
+      db.onversionchange=()=>db.close();
+      try{
+        const tx=db.transaction(BACKUP_STORE,action==="get"?"readonly":"readwrite");
+        const store=tx.objectStore(BACKUP_STORE);
+        const op=action==="put"?store.put(value,SAVE_KEY):action==="delete"?store.delete(SAVE_KEY):store.get(SAVE_KEY);
+        tx.oncomplete=()=>{db.close();resolve(op.result);};
+        tx.onabort=tx.onerror=()=>{db.close();reject(tx.error||new Error("Sauvegarde impossible"));};
+      }catch(e){db.close();reject(e);}
+    };
+  });
+}
+function queueBackup(action,value){
+  const operation=backupQueue.then(()=>backupAccess(action,value));
+  backupQueue=operation.catch(()=>{});
+  return operation;
+}
+function saveLocal(force){
+  if(!session)return Promise.resolve(false);const now=Date.now();
+  if(!force&&now-lastSave<15000)return Promise.resolve(false);lastSave=now;
+  try{
+    // Instantané pris à l'appel, avant toute attente : aucun événement ajouté.
+    const raw=JSON.stringify({session,observations,elapsedMs:walkedMs(),savedAt:now});
+    return queueBackup("put",raw).then(()=>{
+      try{localStorage.removeItem(SAVE_KEY);}catch(e){}
+      backupStatus(false);return true;
+    },()=>{backupStatus(true);return false;});
+  }catch(e){backupStatus(true);return Promise.resolve(false);}
+}
+function clearLocal(){
+  try{localStorage.removeItem(SAVE_KEY);}catch(e){backupStatus(true);}
+  return queueBackup("delete").catch(()=>{backupStatus(true);});
+}
+async function readBackup(){
+  let raw=null,legacy=null;
+  try{raw=await queueBackup("get");}catch(e){backupStatus(true);}
+  try{legacy=localStorage.getItem(SAVE_KEY);}catch(e){backupStatus(true);}
+  const parse=value=>{if(!value)return null;try{return JSON.parse(value);}catch(e){backupStatus(true);return null;}};
+  const current=parse(raw),old=parse(legacy);
+  const d=old&&(!current||Number(old.savedAt)>Number(current.savedAt))?old:current;
+  if(d===old&&old){
+    try{await queueBackup("put",legacy);localStorage.removeItem(SAVE_KEY);backupStatus(false);}
+    catch(e){backupStatus(true);} // L'ancienne copie reste disponible si la migration échoue.
+  }
+  return d;
+}
+async function offerRecovery(){
+  const d=await readBackup();
+  if(mode!=="notice"||!d||!d.session||!(d.session.samples||[]).length)return;
   const host=document.querySelector("#scNotice .scroll");if(!host)return;
   const box=document.createElement("div");box.className="warnbox";
   box.innerHTML="<b>Une marche non terminée a été retrouvée</b> — "+d.session.samples.length+
@@ -1049,6 +1115,18 @@ function buildWalkExport(sess,obs){
     LocationSample:sess.samples,InteractionEvent:sess.events,
     FieldObservation:obs};
 }
+// Mo décimal ; calcul sur les octets réellement transmis, gzip ou repli.
+function sendTimeout(size){return Math.min(120000,20000+10000*size/1000000);}
+async function prepareDepotBody(texte){
+  const plain=new Blob([texte],{type:"application/json"});
+  if(typeof CompressionStream!=="function")return {body:plain,headers:{"Content-Type":"application/json"}};
+  try{
+    const body=await new Response(plain.stream().pipeThrough(new CompressionStream("gzip"))).blob();
+    return {body,headers:{"Content-Type":"application/json","Content-Encoding":"gzip"}};
+  }catch(e){return {body:plain,headers:{"Content-Type":"application/json"}};}
+}
+const NETWORK_FAILURE="Pas de réseau pour le moment. Ta marche reste sur le téléphone : réessaie à la prochaine connexion, ou touche Envoyer autrement.";
+const SIZE_FAILURE="Ta marche est trop longue pour l'envoi direct. Touche Envoyer autrement et choisis Courriel.";
 async function sendToDepot(out,texte){
   /* L'heure de génération n'identifie pas une marche. SHA-256 porte uniquement
      sur les données exportées ; aucune empreinte ni aucun reçu ne part au réseau. */
@@ -1067,25 +1145,25 @@ async function sendToDepot(out,texte){
       if(value)localStorage.setItem(key,JSON.stringify(value));else localStorage.removeItem(key);
     }catch(e){}};
     let lockFailure=false;
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+    const payload=await prepareDepotBody(texte);
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),sendTimeout(payload.body.size));
     try{
-      const r=await fetch(DEPOT_URL,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:texte,signal:controller.signal});
+      const r=await fetch(DEPOT_URL,{method:"POST",headers:payload.headers,
+        body:payload.body,signal:controller.signal});
       lockFailure=r.ok||r.status===429||r.status===403;
       if(!r.ok){
-        const message=r.status===429?"Trop d'envois pour le moment. Réessaie dans une heure en rouvrant la page.":
+        const message=r.status===413?SIZE_FAILURE:r.status===429?"Trop d'envois pour le moment. Réessaie dans une heure en rouvrant la page.":
           r.status===403?"Le dépôt a refusé l'accès. Réessaie plus tard ; si cela persiste, demande de l'aide à l'équipe.":
           "Le dépôt ne répond pas. Réessaie dans un instant — ou envoie autrement.";
         throw new Error(message);
       }
       const receipt=await r.json();
-      if(!receipt||!receipt.ok)throw new Error("Le dépôt n'a pas confirmé la réception. Reprends plus tard.");
+      if(!receipt||!receipt.ok||receipt.recu!==out.WalkSession.session_id)throw new Error("Le dépôt n'a pas confirmé la réception. Reprends plus tard.");
       remember({ok:true});
       clearLocal();return "depot";
     }catch(e){
-      const message=e.name==="AbortError"?"La réception n'a pas été confirmée à temps. Reprends dans une heure.":
-        e.name==="TypeError"?"Pas de réseau. Réessaie quand tu auras du signal — ou envoie autrement.":e.message;
-      const retryAt=e.name!=="TypeError"&&(lockFailure||e.name==="AbortError")?Date.now()+3600000:0;
+      const message=e.name==="AbortError"||e.name==="TypeError"?NETWORK_FAILURE:e.message;
+      const retryAt=e.name!=="TypeError"&&e.name!=="AbortError"&&lockFailure?Date.now()+3600000:0;
       remember(retryAt?{ok:false,retryAt,message}:null);
       throw Object.assign(new Error(message),{retryAt});
     }finally{clearTimeout(timer);}
@@ -1104,7 +1182,7 @@ async function exportJSON(sess,obs,localSeulement){
   const blob=new Blob([texte],{type:"application/json"});
 
   /* 1. Le depot : le marcheur ne voit jamais un fichier. */
-  if(DEPOT_URL&&!localSeulement)return sendToDepot(out,texte);
+  if(DEPOT_URL&&!localSeulement)return sendToDepot(out,JSON.stringify(out));
 
   /* 2. Repli : la feuille de partage native. */
   let shared=false;
@@ -1395,14 +1473,13 @@ document.addEventListener("DOMContentLoaded",()=>{
         issue==="depot"?"Bien reçue, merci ✓ Ta marche est arrivée en lieu sûr. Tu peux fermer. ":
         issue==="partage"?"Ta marche est prête ✓ Envoie-la depuis la feuille de partage. ":
         "Ta marche est prête ✓ (feuille de partage indisponible — le fichier est dans Téléchargements). ")+
-        "Reçu : "+code+" · "+pts+" points, "+n+" observation"+(n>1?"s":"")+". "+
+        (issue==="depot"?"Reçu : ":"Code de la marche : ")+code+" · "+pts+" points, "+n+" observation"+(n>1?"s":"")+". "+
         "Ce qui rejoint le corpus est supprimé dès agrégation, au plus tard sous 90 jours.";
     }catch(e){
       mode="save_error";button.disabled=Date.now()<((e&&e.retryAt)||0);
       button.textContent=button.disabled?"Envoi non confirmé":"Réessayer l'envoi";
       other.disabled=false;other.style.display="block";
-      $("#doneTxt").textContent=(e&&e.message?e.message:"L'envoi a échoué. Reprends plus tard.")+
-        " Ta marche est toujours gardée sur ce téléphone.";
+      $("#doneTxt").textContent=e&&e.message?e.message:"L'envoi a échoué. Reprends plus tard.";
       $("#btnBackToSave").style.display="block";
     }finally{sending=false;}
   };
