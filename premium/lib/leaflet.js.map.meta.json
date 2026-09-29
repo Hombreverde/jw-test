@@ -1,0 +1,28 @@
+{
+  "url": "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js.map",
+  "date": "2026-09-29T21:46:16.157942+00:00",
+  "bytes": 225544,
+  "sha256": "600a10dc5cd110de0699510d322afcbe01c7ca90b4c5f48adc20314c70aac753",
+  "headers": {
+    "Date": "Tue, 29 Sep 2026 21:46:14 GMT",
+    "Content-Type": "application/octet-stream; charset=utf-8",
+    "Transfer-Encoding": "chunked",
+    "Connection": "close",
+    "CF-Cache-Status": "BYPASS",
+    "Access-Control-Allow-Origin": "*",
+    "Cache-Control": "no-transform, public, s-maxage=30672000, max-age=30672000, immutable",
+    "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.01,\"max_age\":604800}",
+    "Last-Modified": "Sun, 07 Jan 2024 20:29:00 GMT",
+    "Vary": "Accept-Encoding",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+    "Timing-Allow-Origin": "*",
+    "X-Content-Type-Options": "nosniff",
+    "cf-cdnjs-via": "cfworker/r2",
+    "x-cdnjs-cache": "MISS",
+    "Strict-Transport-Security": "max-age=15780000",
+    "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=uLmW5%2FzV9ClXH1owjkn%2B5trKnLj7WbPm5yA%2FEhYgYx9hcKVgs4Djklz41ISDwtvJAK6UJymTtTpXgbfqiDqNshrdMRsv6RgIS0dAhcMQcsFdlhMi6wznPNT7LJVkcn5qPc9Fcyet\"}]}",
+    "Server": "cloudflare",
+    "CF-RAY": "a42e2df17c4bd6e0-IAD",
+    "alt-svc": "h3=\":443\"; ma=86400"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "url": "https://raw.githubusercontent.com/Leaflet/Leaflet/v1.9.4/LICENSE",
+  "date": "2026-09-29T21:46:14.559265+00:00",
+  "bytes": 1395,
+  "sha256": "53e8dc25862014e4324741ca18fbe3611e11d42ef69f59f86ea8c5389647d4cb",
+  "headers": {
+    "Connection": "close",
+    "Content-Length": "1395",
+    "Cache-Control": "max-age=300",
+    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    "Content-Type": "text/plain; charset=utf-8",
+    "ETag": "\"d246cd103ce25b1c0e6350d4b7bb2814fcc84e169e480f091d35a6e30bff4b5a\"",
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "deny",
+    "X-XSS-Protection": "1; mode=block",
+    "X-GitHub-Request-Id": "6460:80D1E:3FCC3:7897F:6ABC31A4",
+    "x-github-edge-region": "iad",
+    "Accept-Ranges": "bytes",
+    "Date": "Tue, 29 Sep 2026 21:46:13 GMT",
+    "Via": "1.1 varnish",
+    "X-Served-By": "cache-yyz4580-YYZ",
+    "X-Cache": "MISS",
+    "X-Cache-Hits": "0",
+    "X-Timer": "S1790718373.298921,VS0,VE64",
+    "Vary": "Authorization,Accept-Encoding",
+    "Access-Control-Allow-Origin": "*",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+    "X-Fastly-Request-ID": "1adf8027f7250dcb68e21863ad150f97384fa482",
+    "Expires": "Tue, 29 Sep 2026 21:51:13 GMT",
+    "Source-Age": "0"
+  }
+}

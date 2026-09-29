@@ -1,0 +1,42 @@
+{
+  "bounds": [
+    [
+      48.826,
+      2.32
+    ],
+    [
+      48.869,
+      2.381
+    ]
+  ],
+  "projection": "EPSG:3857",
+  "minZoom": 14,
+  "maxZoom": 16,
+  "source": "OpenStreetMap via Overpass API",
+  "licence": "ODbL 1.0",
+  "copyright": "https://www.openstreetmap.org/copyright",
+  "query": "[out:json][timeout:120];(way[highway](48.826,2.32,48.869,2.381);way[building](48.826,2.32,48.869,2.381);way[leisure~\"park|garden|pitch\"](48.826,2.32,48.869,2.381);way[natural=\"water\"](48.826,2.32,48.869,2.381);way[landuse~\"grass|forest\"](48.826,2.32,48.869,2.381););out geom;",
+  "water_query": "[out:json][timeout:120];relation[natural=\"water\"](48.826,2.32,48.869,2.381);out geom;",
+  "osm_timestamp": "2026-09-29T21:45:05Z",
+  "water_timestamp": "2026-09-29T21:48:11Z",
+  "features": 63393,
+  "water_relations": 4,
+  "images": [
+    {
+      "file": "quartier-latin-z15.svg",
+      "raster": "quartier-latin-z15.webp",
+      "zoom": 15,
+      "width": 1421.403022222221,
+      "height": 1522.603404785972,
+      "labels": 29
+    },
+    {
+      "file": "quartier-latin-z16.svg",
+      "raster": "quartier-latin-z16.webp",
+      "zoom": 16,
+      "width": 2842.806044444442,
+      "height": 3045.206809571944,
+      "labels": 165
+    }
+  ]
+}
