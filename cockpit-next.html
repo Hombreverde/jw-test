@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.4.5)</title>
+<title>JW — Cockpit marcheur (prototype v0.4.6)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
-<meta name="theme-color" content="#faf8f3">
+<meta name="theme-color" content="#7D3A5E">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root{
-    --bg:#faf8f3; --card:#ffffff; --line:#171712; --ink:#171712; --dim:#171712;
-    --acc:#00152d; --ok:#001d0d; --warn:#171712; --star:#fffbdc;
+    --bg:#FFFCF5; --card:#ffffff; --line:#7E8894; --ink:#14181D; --dim:#33404C;
+    --acc:#7D3A5E; --ok:#7D3A5E; --warn:#8E1B1B; --star:#FFF1B8;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%}
@@ -25,21 +25,21 @@
   header h1{margin:0;font-size:17px;font-weight:600;flex:1;line-height:1.25}
   .chip{font-variant-numeric:tabular-nums;font-size:15px;font-weight:600;background:#ffffff;
     border:1px solid var(--line);color:var(--dim);padding:6px 11px;border-radius:999px;white-space:nowrap}
-  .chip.live{color:var(--ok);border-color:#001d0d}
-  .wipe{background:#ffffff;border:0;color:#290500;text-decoration:underline;font-family:inherit;font-weight:600;font-size:14px;line-height:1;padding:8px 4px;width:auto;min-height:0}
+  .chip.live{color:var(--ok);border-color:var(--acc)}
+  .wipe{background:#ffffff;border:0;color:var(--warn);text-decoration:underline;font-family:inherit;font-weight:600;font-size:14px;line-height:1;padding:8px 4px;width:auto;min-height:0}
   .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 0;flex:1}
   .panel{background:var(--card);border-top:1px solid var(--line);padding:12px 16px calc(env(safe-area-inset-bottom) + 12px)}
   .maprow{position:relative;flex:1;display:flex;min-height:170px}
-  #map{flex:1;background:#faf8f3}
-  .leaflet-container{background:#faf8f3;font:inherit}
-  .leaflet-control-attribution{font-size:10px;background:#ffffff;color:#171712}
-  .leaflet-control-attribution a{color:#171712}
+  #map{flex:1;background:var(--bg)}
+  .leaflet-container{background:var(--bg);font:inherit}
+  .leaflet-control-attribution{font-size:10px;background:#ffffff;color:var(--ink)}
+  .leaflet-control-attribution a{color:var(--ink)}
 
   .me{width:78px;height:78px;position:relative;pointer-events:none}
   .me-cone{position:absolute;inset:0;transition:transform .3s ease-out}
   .me-cone::before{content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
     border-left:22px solid transparent;border-right:22px solid transparent;
-    border-bottom:30px solid #00152d;filter:drop-shadow(0 0 3px rgba(0,0,0,.6))}
+    border-bottom:30px solid var(--acc);filter:drop-shadow(0 0 3px rgba(0,0,0,.6))}
   .me-dot{position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;
     border-radius:50%;background:var(--acc);border:4px solid #fff;
     box-shadow:0 0 0 2.5px rgba(0,0,0,.6),0 3px 10px rgba(0,0,0,.55)}
@@ -48,17 +48,17 @@
   h2.big{margin:0 0 10px;font-size:23px;font-weight:650;line-height:1.25}
   .eyebrow{font-size:13px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 4px}
   .lead{font-size:17px;color:var(--dim);margin:0 0 14px;line-height:1.5}
-  .okbox{background:#ffffff;border:1px solid #001d0d;border-radius:12px;padding:12px 14px;font-size:16px;line-height:1.5;margin:0 0 14px}
-  .warnbox{background:#ffffff;border:1px solid #171712;border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.5;margin:0 0 14px}
+  .okbox{background:#ffffff;border:1px solid var(--acc);border-radius:12px;padding:12px 14px;font-size:16px;line-height:1.5;margin:0 0 14px}
+  .warnbox{background:#ffffff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.5;margin:0 0 14px}
   .codebox{font:700 26px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.06em;text-align:center;
     background:#ffffff;border:1.5px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px;color:var(--acc)}
 
   button{width:100%;min-height:58px;border:2px solid var(--acc);border-radius:14px;font-family:inherit;font-weight:600;font-size:19px;line-height:1.2;
     color:#ffffff;background:var(--acc);cursor:pointer;padding:0 16px}
-  button.ghost{background:#ffffff;color:var(--ink);border:1.5px solid #171712;min-height:52px;font-size:17px}
-  button.stop{background:#290500;color:#ffffff;border:1.5px solid #290500}
+  button.ghost{background:#ffffff;color:var(--ink);border:1.5px solid var(--line);min-height:52px;font-size:17px}
+  button.stop{background:var(--warn);color:#ffffff;border:1.5px solid var(--warn)}
   button.warn{background:#ffffff;color:var(--ink);border:2px solid var(--ink)} /* v0.4.1 G-bis : Pause blanche à contour — Étoile jaune pâle / Pause blanche / Arrivée sombre = trois valeurs distinctes */
-  button.star{background:var(--star);color:#171712;border:2px solid var(--ink);min-height:64px;font-size:20px}
+  button.star{background:var(--star);color:var(--ink);border:2px solid var(--ink);min-height:64px;font-size:20px}
   button+button{margin-top:9px}
   .row{display:flex;gap:9px;margin-top:9px}
   .row button{flex:1;margin-top:0}
@@ -71,12 +71,12 @@
      des 3. Un champ BLANC tient a 3,8:1, texte 5,3:1. C'est le papier : fond clair,
      encre sombre. (Et rien ne sauve un ecran baisse en plein soleil — d'ou la ligne
      « batterie chargee, luminosite montee » ajoutee au Kit du marcheur.) */
-  textarea,input[type=text]{width:100%;background:#ffffff;border:2.5px solid #00152d;border-radius:12px;
-    color:#10141a;font:inherit;font-size:20px;padding:14px;
-    caret-color:#00152d;box-shadow:0 0 0 3px rgba(255,255,255,.25)}
-  textarea::placeholder,input[type=text]::placeholder{color:#171712}
-  textarea:focus,input[type=text]:focus{outline:none;border-color:#171712;
-    box-shadow:0 0 0 4px #171712}
+  textarea,input[type=text]{width:100%;background:#ffffff;border:2px solid var(--acc);border-radius:12px;
+    color:var(--ink);font:inherit;font-size:20px;padding:14px;
+    caret-color:var(--acc);box-shadow:0 0 0 3px rgba(255,255,255,.25)}
+  textarea::placeholder,input[type=text]::placeholder{color:var(--ink)}
+  textarea:focus,input[type=text]:focus{outline:none;border-color:var(--acc);
+    box-shadow:0 0 0 4px var(--acc)}
   textarea{min-height:120px;resize:vertical;line-height:1.45}
   .dicte{font-size:13px;color:var(--dim);margin:6px 0 14px}
   .opts{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
@@ -93,23 +93,17 @@
   .note{font-size:14px;color:var(--dim);line-height:1.5;margin:14px 0}
   .fail{padding:26px 18px;text-align:center;color:var(--dim);font-size:16px;line-height:1.55}
   /* v0.3.10 — états critiques : papier clair, encre sombre, sans animation. */
-  .tracealert,.coveragenote{display:none;background:#ffffff;color:#171712;
+  .tracealert,.coveragenote{display:none;background:#ffffff;color:var(--ink);
     border:2px solid var(--ink);border-left-width:6px;padding:10px 16px;font-size:16px;font-weight:700;line-height:1.4}
   .coveragenote{margin-bottom:12px;border-radius:10px}
-  .wakebar{display:flex;align-items:center;gap:8px;padding:4px 16px;font-size:13px}
-  .wakebar span{flex:1}
-  .wakebar button{width:auto;min-height:44px;padding:6px 10px;font-size:13px}
   button:disabled{cursor:default}
-  #btnSendOther{background:#ffffff;color:#171712;min-height:56px;border:2px solid var(--ink)}
+  #btnSendOther{background:#ffffff;color:var(--ink);min-height:56px;border:2px solid var(--ink)}
 
   /* v0.3 — mission en tête (concept 18/08 §2) */
-  .mstrip{background:#ffffff;border-bottom:1px solid #001d0d;color:#171712;
+  .mstrip{background:#ffffff;border-bottom:1px solid var(--acc);color:var(--ink);
     font-size:14px;font-weight:600;padding:7px 16px;line-height:1.35}
   /* v0.3 — mini-cockpit de l'instant (concept 18/08 §3) */
   #scWalk{position:relative}
-  .taphint{position:absolute;left:12px;right:12px;bottom:12px;z-index:500;pointer-events:none;
-    background:#ffffff;color:#171712;font-size:13px;font-weight:600;
-    padding:7px 10px;border-radius:10px;text-align:center}
   .veil{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;z-index:1199}
   .veil.on{display:block}
   /* v0.3.6 — la fermeture ne repose PLUS sur transform/transition : terrain du 24/08,
@@ -125,7 +119,7 @@
   .sheet .mline{font-size:14px;font-weight:600;color:var(--ok);margin:0 0 8px}
   .lmrow{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 10px}
   .lmchip{width:auto;min-height:40px;font-size:14px;padding:6px 12px;border-radius:999px;
-    background:#ffffff;color:#171712;border:1.5px solid #171712}
+    background:#ffffff;color:var(--ink);border:1.5px solid var(--line)}
   .lmfiche{font-size:14px;color:var(--dim);background:#ffffff;border:1px solid var(--line);
     border-radius:10px;padding:8px 11px;margin:0 0 10px}
   /* v0.3 — interrupteur de consentement par récit (concept 18/08 §5) */
@@ -139,21 +133,20 @@
      Calculs et écarts au cahier des charges : tools_v04/contraste.py.
      Liseré blanc de 2 px par filtre CSS : aucune seconde trace ni logique ajoutée. */
   #btnSend{background:var(--ok);color:#ffffff;border-color:var(--ok)}
-  #btnArrive{background:#290500;color:#ffffff;border-color:#290500}
+  #btnArrive{background:var(--card);color:var(--acc);border-color:var(--acc)}
   #scWalk>.panel{flex-shrink:0}
   #btnPause{flex:0 0 auto;width:auto}
   /* v0.4.4 — la carte reste dans sa zone ; les messages restent près d'Arrivée. */
   #scWalk>header{position:relative;z-index:1;flex-shrink:0}
   #scWalk>.maprow{overflow:hidden;isolation:isolate;min-height:0}
   #scWalk #map{position:relative;overflow:hidden}
-  #btnGo{background:#23733e;border-color:#23733e;color:#ffffff}
-  #btnArrive{margin-top:9px}
+  #btnGo{background:var(--acc);border-color:var(--acc);color:#ffffff}
   #arrivalHint,#departureHint{display:none;font-size:15px;line-height:1.4;font-weight:400;
-    padding:9px 12px;margin-top:9px;border:1px solid #b77912;border-radius:10px;
-    background:#fff2ce;color:#171712}
-  .savealert{display:none;background:#a01818;color:#fff;border:2px solid #7a1010;
+    padding:9px 12px;margin-top:9px;border:1px solid var(--acc);border-radius:10px;
+    background:var(--star);color:var(--ink)}
+  .savealert{display:none;background:var(--warn);color:#fff;border:2px solid var(--warn);
     border-radius:10px;padding:9px 12px;margin:9px 0;font-size:15px;line-height:1.4;flex-shrink:0}
-  #departureHint{background:#e5f5e9;border-color:#23733e}
+  #departureHint{background:var(--card);border-color:var(--acc)}
   #versionBadge{white-space:normal;font-size:11px;max-width:165px}
   .arrivalSteps{padding:8px 16px;font-size:14px;line-height:1.4}
   .arrivalSteps p{margin:0 0 6px}
@@ -167,6 +160,29 @@
   .me-dot{box-shadow:0 0 0 2.5px #171712}
   button:focus-visible,.opt:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
   .seg button.on{box-shadow:inset 0 -4px 0 #ffffff}
+  /* v0.4.6 — habit Ottawa vieux rose et écran de marche compact. */
+  header{background:var(--acc);color:#fff}
+  .chip.live{color:var(--acc);border-color:var(--acc)}
+  .wipe{color:var(--warn)}
+  #scWalk>header{gap:10px;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px}
+  #chipTime{flex:1;background:transparent;color:#fff;border:0;padding:0;font-size:20px;font-weight:800}
+  .walkIcon{width:44px;min-height:44px;padding:0;border:1px solid #fff;border-radius:10px;background:var(--acc);color:#fff;font-size:24px;margin:0}
+  .srOnly{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  #walkMission{position:absolute;top:10px;left:10px;right:10px;z-index:500;background:var(--card);color:var(--ink);border:2px solid var(--acc);border-radius:10px;padding:8px 10px}
+  #scWalk>.panel{padding:10px 14px env(safe-area-inset-bottom);background:var(--bg)}
+  .walkRow{display:grid;gap:9px;grid-template-columns:1.55fr 1fr}
+  .walkRow.second{grid-template-columns:1fr 1.25fr;margin-top:9px}
+  .walkRow button{margin:0;width:100%;padding:8px;font-size:19px;min-height:76px}
+  .walkRow.second button{min-height:52px;font-size:17px}
+  #btnPause{width:100%}
+  #btnArrive{margin:0;background:var(--card);color:var(--acc);border:2px solid var(--acc)}
+  .walkMenu{position:absolute;top:calc(env(safe-area-inset-top) + 70px);left:14px;right:14px;z-index:1201;background:var(--bg);color:var(--ink);border:2px solid var(--acc);border-radius:14px;padding:14px;box-shadow:0 5px 20px #0004;max-height:75%;overflow-y:auto}
+  .walkMenu[hidden]{display:none}
+  .walkMenu p{margin:0 0 12px;font-size:17px}
+  .walkMenu .wipe{width:100%;min-height:52px;border:2px solid var(--warn);font-size:17px;text-decoration:none}
+  #toldStars{margin:0 0 14px;padding-left:24px;font-size:16px;color:var(--dim)}
+  #toldStars:empty{display:none}
+  textarea::placeholder,input[type=text]::placeholder{color:var(--dim);opacity:1}
 </style>
 </head>
 <body>
@@ -174,7 +190,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.5</span></header>
+    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.6</span></header>
   <div class="savealert" role="alert"></div>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
@@ -216,23 +232,34 @@
 
 <!-- ═══ 3. MARCHE — l'app se tait ═══ -->
 <section id="scWalk" class="screen">
-  <header><h1>Marche en cours</h1><span class="chip live" id="chipTime">0 min</span>
-    <button class="wipe" id="btnWipeWalk">Tout effacer</button></header>
-  <div class="mstrip" id="walkMission">🎯 Faire découvrir ton quartier à quelqu'un qui le visite.</div>
+  <header aria-label="Marche en cours">
+    <span id="chipTime">0 min · 0,0 km</span>
+    <span id="wakeStatus" class="srOnly" role="status" aria-live="polite"></span>
+    <button id="btnWake" class="walkIcon" aria-pressed="true" aria-label="Écran libre">🔆</button>
+    <button id="btnWalkMenu" class="walkIcon" aria-label="Menu de la marche" aria-controls="walkMenu" aria-expanded="false">⋯</button>
+  </header>
   <div id="traceAlert" class="tracealert" role="status" aria-live="polite"></div>
-  <div class="wakebar"><span id="wakeStatus" role="status"></span>
-    <button id="btnWake" class="ghost" aria-pressed="true">Écran libre</button></div>
   <div class="maprow"><div id="mapHost" style="flex:1;display:flex"></div>
-    <div class="taphint" id="tapHint" style="display:none">Touche la carte : elle ouvre ton espace.</div></div>
+    <div class="mstrip" id="walkMission">🎯 Faire découvrir ton quartier à quelqu'un qui le visite.</div>
+  </div>
   <div class="panel">
-    <button id="btnStar" class="star">⭐ Ici, quelque chose</button>
+    <div class="walkRow">
+      <button id="btnRaconteIci">🎙 Raconte ici</button>
+      <button id="btnStar" class="star">⭐ Marquer</button>
+    </div>
     <div id="departureHint" role="status" aria-live="polite"></div>
     <div id="arrivalHint" role="status" aria-live="polite"></div>
     <div id="saveAlert" class="savealert" role="alert"></div>
-    <button id="btnArrive">🏁 Arrivée — je termine ma marche</button>
-    <div class="row">
+    <div class="walkRow second">
       <button id="btnPause" class="warn mini">Pause</button>
+      <button id="btnArrive">🏁 Arrivée…</button>
     </div>
+  </div>
+  <div id="walkMenu" class="walkMenu" role="dialog" aria-label="Menu de la marche" hidden>
+    <p id="menuMission"></p>
+    <button id="btnMenuWake" class="ghost">Écran libre</button>
+    <button id="btnWipeWalk" class="wipe">Tout effacer</button>
+    <button id="btnMenuClose" class="ghost">Fermer le menu</button>
   </div>
   <!-- v0.3 — mini-cockpit de l'instant : un toucher ouvre l'espace du marcheur -->
   <div class="veil" id="veil"></div>
@@ -252,7 +279,7 @@
     </div>
     <div id="sheetStory" style="display:none">
       <textarea id="storyTxt" placeholder="Une phrase suffit — tu développeras assis, au débrief."></textarea>
-      <p class="dicte">🎙 Dictée du clavier : le téléphone transcrit — l'app ne reçoit que du texte.</p>
+      <p class="dicte">🎙 Touche le micro du clavier pour dicter.</p>
       <div class="row">
         <button id="btnStorySave" class="mini">Garder ce récit</button>
         <button id="btnStoryCancel" class="ghost mini">Annuler</button>
@@ -293,6 +320,8 @@
   <div class="scroll">
     <div id="coverageNote" class="coveragenote" role="status"></div>
     <div id="debriefStatus" class="coveragenote" role="status"></div>
+    <ul id="toldStars" aria-label="Repères déjà racontés"></ul>
+    <div id="debriefQuestion">
     <p class="count" id="qCount">—</p>
     <div class="moment"><div class="k" id="mKind">—</div><div class="t" id="mQuestion">—</div></div>
     <div class="opts" id="mOpts"></div>
@@ -307,6 +336,7 @@
         <button type="button" data-c="team">Pour l'équipe</button>
         <button type="button" data-c="self" class="on">Pour moi</button>
       </div>
+    </div>
     </div>
   </div>
   <div class="panel"><div class="row" style="margin-top:0">
@@ -389,7 +419,7 @@ function computeTraceCoverage(samples, startedAt, endedAt, { thresholdS = 20 } =
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.4.5", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.4.6", SAVE_KEY="jw_cockpit_inprogress";
 /* v0.3.7 — boite de depot (wireframe du 18/08, etape 2 ; GO Jose du 03/09).
    Vide = pas de depot, on retombe sur la feuille de partage native comme avant.
    L'adresse complete, jeton compris, est donnee par install_jw_depot.sh. */
@@ -435,7 +465,8 @@ const RUNGS=[
 let mode="notice", map=null, dMap=null, watchId=null, orientOn=false, heading=null;
 let meMarker=null, meHalo=null, lastPos=null, tracLine=null;
 let session=null, tick=null, elapsedMs=0, runSince=null, pauseSince=null, lastSave=0;
-let moments=[], qIdx=0, observations=[];
+let moments=[], toldMoments=[], qIdx=0, observations=[];
+let distanceM=0, distanceAnchor=null, missionTimer=null;
 let lastFixAt=null, traceState="attente_position";
 let wakeWanted=true, wakeHandle=null, wakePending=null, wakeEpoch=0;
 let sending=false;
@@ -448,6 +479,31 @@ function hav(a,o,b,p){const R=6371000,dp=rad(b-a),dl=rad(p-o);
   return 2*R*Math.asin(Math.sqrt(x));}
 const fmtT=s=>{if(!isFinite(s)||s<0)return"—";const m=Math.round(s/60);
   return m<1?"moins d'1 min":m<60?m+" min":Math.floor(m/60)+" h "+String(m%60).padStart(2,"0");};
+/* Distance d'affichage uniquement : l'ancre avance après un déplacement
+   supérieur aux deux incertitudes cumulées. Aucun pont à travers une pause. */
+function updateDistance(pos){
+  const c=pos.coords;
+  if(pos.timestamp<Date.parse(session.started_at)||!Number.isFinite(c.latitude)||
+    !Number.isFinite(c.longitude)||!Number.isFinite(c.accuracy)||c.accuracy<0||c.accuracy>25)return;
+  if(distanceAnchor){
+    const d=hav(distanceAnchor.latitude,distanceAnchor.longitude,c.latitude,c.longitude);
+    if(d<distanceAnchor.accuracy+c.accuracy)return;
+    distanceM+=d;
+  }
+  distanceAnchor={latitude:c.latitude,longitude:c.longitude,accuracy:c.accuracy};
+}
+function fmtDistance(m){const km=m/1000;return (Math.round(km*10)<100?km.toFixed(1).replace('.',','):String(Math.round(km)))+' km';}
+function renderWalkTime(){$('#chipTime').textContent=fmtT(walkedMs()/1000)+' · '+fmtDistance(distanceM);}
+function hideWalkMission(){clearTimeout(missionTimer);missionTimer=null;$('#walkMission').style.display='none';}
+function closeWalkMenu(){
+  $('#walkMenu').hidden=true;$('#btnWalkMenu').setAttribute('aria-expanded','false');
+}
+function openWalkMenu(){
+  if(mode!=='walk')return;
+  $('#menuMission').textContent=$('#walkMission').textContent;
+  $('#walkMenu').hidden=false;$('#btnWalkMenu').setAttribute('aria-expanded','true');
+  $('#btnMenuClose').focus();
+}
 function walkedMs(){return elapsedMs+(runSince?Date.now()-runSince:0);}
 const show=id=>document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));
 const newCode=()=>{const A="ACDEFHJKLMNPRTUVWXY34679";let c="";
@@ -476,7 +532,7 @@ function initMap(){
     '<div class="fail"><h2>La carte n\'a pas pu se charger</h2><p>Vérifie ta connexion puis recharge la page.</p></div>';
     return false;}
   map=L.map(document.createElement("div"),{zoomControl:false,minZoom:14,maxZoom:19});
-  map.getContainer().id="map";map.getContainer().style.cssText="flex:1;background:#faf8f3";
+  map.getContainer().id="map";map.getContainer().style.cssText="flex:1;background:var(--bg)";
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
   map.setView([45.4295,-75.6979],16);
   // v0.2 — la carte reste stable par rapport au trajet et à la voirie (lacune José 17/08) :
@@ -544,7 +600,7 @@ function showDepartureHint(){
   const box=$("#departureHint");
   box.textContent="✅ C'est parti — ta marche s'enregistre";
   box.style.display="block";
-  departureTimer=setTimeout(()=>{box.style.display="none";departureTimer=null;},5000);
+  departureTimer=setTimeout(()=>{box.style.display="none";box.textContent="";departureTimer=null;},5000);
 }
 function resetArrivalHint(){
   arrivalStop=null;arrivalCandidate=null;arrivalLastAt=null;
@@ -612,10 +668,11 @@ function setTraceState(state){
   else if(state!=="enregistrement")suspendArrivalHint();
   traceState=state;
   const box=$("#traceAlert");
-  box.textContent=state==="trace_interrompue"?
+  const visible=mode==="walk"&&state!=="enregistrement";
+  box.textContent=!visible?"":state==="trace_interrompue"?
     "⚠ La trace est en pause — rallume l'écran. Garde le Cockpit au premier plan.":
     "Position en attente — garde le Cockpit ouvert.";
-  box.style.display=mode==="walk"&&state!=="enregistrement"?"block":"none";
+  box.style.display=visible?"block":"none";
 }
 function checkTraceInterruption(){
   if(!session||mode!=="walk")return;
@@ -668,7 +725,11 @@ function renderWakeStatus(){
   $("#wakeStatus").textContent=held?"Écran maintenu allumé":
     !wakeWanted?"Écran libre — garde cette page visible":
     wakeProblem||"Écran non maintenu — garde cette page visible";
-  $("#btnWake").textContent=wakeWanted?"Écran libre":"Maintenir l'écran";
+  const action=wakeWanted?"Écran libre":"Maintenir l'écran";
+  $("#btnWake").textContent="🔆";
+  $("#btnWake").title=$("#wakeStatus").textContent;
+  $("#btnWake").setAttribute("aria-label",action+" — "+$("#wakeStatus").textContent);
+  $("#btnMenuWake").textContent=action;
   $("#btnWake").setAttribute("aria-pressed",String(wakeWanted));
 }
 async function acquireWakeLock(){
@@ -743,6 +804,7 @@ function onPos(pos){
   if(interrupted)syncTraceCoverage(session,new Date(Math.max(lastFixAt,Date.parse(session.started_at))).toISOString());
   setTraceState("enregistrement");
   updateArrivalHint(pos);
+  updateDistance(pos);renderWalkTime();
   if(tracLine)tracLine.addLatLng([c.latitude,c.longitude]);
   saveLocal(interrupted);
 }
@@ -859,6 +921,10 @@ function pushEvent(kind,note){if(session){session.events.push({event_id:"e"+sess
   timestamp:new Date().toISOString(),kind,note:note||null});saveLocal(true);}}
 function startSession(){
   const t0=Date.now();runSince=t0;elapsedMs=0;
+  distanceM=0;distanceAnchor=null;lastPos=null;closeWalkMenu();
+  $('#walkMission').textContent='🎯 '+($('#missionNote').value.trim()||"Faire découvrir ton quartier à quelqu'un qui le visite.");
+  $('#walkMission').style.display='block';clearTimeout(missionTimer);
+  missionTimer=setTimeout(hideWalkMission,60000);renderWalkTime();
   lastFixAt=null;wakeWanted=true;wakeProblem="";
   session={session_id:$("#sessCode").textContent,consent_ref:"OWNER_SELF_TEST",
     walk_kind:"free_resident_walk",app_version:APP_VERSION,schema_version:"0.3+fo0.4+gap0.1",
@@ -869,14 +935,15 @@ function startSession(){
   setTraceState("attente_position");
   pushEvent("start","Départ marcheur");
   tick=setInterval(()=>{
-    if(mode==="walk"){checkTraceInterruption();$("#chipTime").textContent=fmtT(walkedMs()/1000);}
+    if(mode==="walk"){checkTraceInterruption();renderWalkTime();}
     if(mode==="paused"&&pauseSince)$("#pauseFor").textContent="en pause depuis "+fmtT((Date.now()-pauseSince)/1000);
   },5000);
 }
 function wipeAll(fromWhere){
   if(!confirm("Tout effacer maintenant ? Rien ne sera conservé."))return;
   clearInterval(tick);stopWatch();clearLocal();
-  session=null;observations=[];moments=[];
+  hideWalkMission();closeWalkMenu();distanceM=0;distanceAnchor=null;
+  session=null;observations=[];moments=[];toldMoments=[];
   if(tracLine){map.removeLayer(tracLine);tracLine=null;}
   mode="done";
   releaseWakeLock();setTraceState("attente_position");
@@ -957,7 +1024,14 @@ async function analyse(){
   const divs=conv?detectDivergences(smp,conv):[];
   const dwells=detectDwells(smp);
   divs.sort((a,b)=>b.duration_s-a.duration_s);dwells.sort((a,b)=>b.duration_s-a.duration_s);
-  moments=[...stars,...divs,...dwells].slice(0,MAX_MOMENTS);
+  toldMoments=stars.filter(m=>m.told);
+  // Un ancien récit sans observation explicite garde son texte à l'export.
+  ensureStarObservations({...session,stars:toldMoments.map(m=>m.ref)},observations);
+  saveLocal(true);
+  moments=[...stars.filter(m=>!m.told),...divs,...dwells].slice(0,MAX_MOMENTS);
+  const toldList=$('#toldStars');toldList.innerHTML='';
+  toldMoments.forEach(m=>{const li=document.createElement('li');
+    li.textContent='⭐ ✓ déjà raconté — '+m.ref.note;toldList.appendChild(li);});
   /* v0.3 — une étoile existe TOUJOURS : celles qui ne rentrent pas au débrief
      sortent muettes, avec leur position (lacune du 18/08 : 5 posées, 2 exportées) */
   session.stars.forEach(s=>{
@@ -973,7 +1047,7 @@ async function analyse(){
     dMap=null;status.style.display="block";
     status.textContent="La carte ne s'affiche pas. Tes repères restent à raconter.";
   }
-  if(moments.length===0){show("scFinal");mode="final";return;}
+  if(moments.length===0&&toldMoments.length===0){show("scFinal");mode="final";return;}
   qIdx=0;mode="debrief";show("scDebrief");
   setTimeout(()=>{if(dMap)dMap.invalidateSize();},150);
   renderQuestion();
@@ -985,11 +1059,11 @@ function buildDebriefMap(conv){
   if(conv)L.polyline(conv,{color:"#171712",weight:4,opacity:.7,dashArray:"6 8"}).addTo(dMap);
   const own=session.samples.map(s=>[s.latitude,s.longitude]);
   L.polyline(own,{color:"#00152d",weight:5,opacity:.95}).addTo(dMap);
-  moments.forEach((m,i)=>{
+  [...toldMoments,...moments].forEach((m,i)=>{
     L.marker([m.lat,m.lon],{icon:L.divIcon({className:"",iconSize:[30,30],iconAnchor:[15,15],html:
-      `<div style="width:30px;height:30px;border-radius:50%;background:${m.type==="star"?"#fffbdc":"#fff"};
-        color:#171712;font:700 15px/30px -apple-system,sans-serif;text-align:center;
-        border:3px solid #171712;box-shadow:0 2px 7px rgba(0,0,0,.55)">${i+1}</div>`})}).addTo(dMap);
+      `<div style="width:30px;height:30px;border-radius:50%;background:${m.type==="star"?"var(--star)":"var(--card)"};
+        color:var(--ink);font:700 15px/30px -apple-system,sans-serif;text-align:center;
+        border:3px solid var(--ink);box-shadow:0 2px 7px rgba(0,0,0,.55)">${i+1}</div>`})}).addTo(dMap);
   });
   if(own.length)dMap.fitBounds(L.polyline(own).getBounds(),{padding:[30,30]});
 }
@@ -1021,6 +1095,9 @@ function starMuette(s){
   saveLocal(true);
 }
 function renderQuestion(){
+  $('#debriefQuestion').style.display=moments.length?'block':'none';
+  $('#btnQSkip').style.display=moments.length?'block':'none';
+  if(!moments.length){$('#btnQNext').textContent='Terminer le débrief';return;}
   const m=moments[qIdx],[k,q]=momentLabel(m),isDiv=m.type==="divergence";
   $("#qCount").textContent="Moment "+(qIdx+1)+" sur "+moments.length+" — tout est passable";
   $("#mKind").textContent=k;$("#mQuestion").textContent=q;
@@ -1050,6 +1127,7 @@ function renderQuestion(){
   $("#btnQNext").textContent=qIdx===moments.length-1?"Terminer le débrief":"Continuer";
 }
 function recordAnswer(skipped){
+  if(!moments.length){mode="final";show("scFinal");return;}
   const m=moments[qIdx];
   let answered=false;
   if(!skipped){
@@ -1215,9 +1293,10 @@ function etoileVoisine(c){
   }
   return null;
 }
-function dropStar(note){
-  if(mode!=="walk"||!lastPos)return null;
-  const c=lastPos.coords;
+function dropStar(note,position=lastPos){
+  if(mode!=="walk"||!position)return null;
+  const c=position.coords;
+  hideWalkMission();
   /* Deja notee ici, il y a un instant : on n'en cree pas une seconde.
      Si celle-ci apporte un recit et que l'ancienne n'en avait pas, on l'enrichit. */
   const dejaLa=etoileVoisine(c);
@@ -1233,22 +1312,13 @@ function dropStar(note){
   const s={lat:c.latitude,lon:c.longitude,timestamp:new Date().toISOString(),
     note:note||null,has_obs:false};
   session.stars.push(s);pushEvent("star",note?"⭐ récit à chaud":"⭐");
-  L.circleMarker([c.latitude,c.longitude],{radius:9,color:"#171712",weight:3,fillColor:"#fffbdc",fillOpacity:.5}).addTo(map);
+  L.circleMarker([c.latitude,c.longitude],{radius:9,color:"#14181D",weight:3,fillColor:"#FFF1B8",fillOpacity:.5}).addTo(map);
   saveLocal(true);
   return s;
 }
-let dernierUsageFeuille=Date.now(), repereMinuteur=null;
-function montrerRepere(ms,texte){
-  const h=$("#tapHint");if(!h)return;
-  h.textContent=texte||"Touche la carte : elle ouvre ton espace.";
-  h.style.display="block";
-  clearTimeout(repereMinuteur);
-  repereMinuteur=setTimeout(()=>{h.style.display="none";},ms||7000);
-}
 function openSheet(){
   if(mode!=="walk")return;
-  dernierUsageFeuille=Date.now();
-  clearTimeout(repereMinuteur);$("#tapHint").style.display="none";
+  closeWalkMenu();
   $("#sheetMission").textContent="🎯 "+(session&&session.mission_note?
     session.mission_note:"Ta mission : faire découvrir ton quartier.");
   const row=$("#lmRow"),fiche=$("#lmFiche");row.innerHTML="";fiche.style.display="none";
@@ -1281,14 +1351,6 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(!initMap())return;
   offerRecovery();
   map.on("click",openSheet);
-  /* v0.3.7 — le 03/09, Myriam a pince l'ecran a deux doigts pour retrouver la
-     feuille. L'app bloque le zoom (user-scalable=no + gesturestart) : il ne se
-     passait rigoureusement rien, pas meme un refus visible. Desormais le
-     pincement dit ou est la porte. */
-  $("#mapHost").addEventListener("touchstart",e=>{
-    if(e.touches&&e.touches.length>=2&&mode==="walk")
-      montrerRepere(5000,"Un seul doigt suffit — touche la carte pour ouvrir ton espace.");
-  },{passive:true});
   $("#btnAccept").onclick=()=>{$("#sessCode").textContent=newCode();show("scPrep");};
   $("#btnComp").onclick=enableCompass;
   $("#btnWake").onclick=()=>{
@@ -1296,26 +1358,34 @@ document.addEventListener("DOMContentLoaded",()=>{
     if(wakeWanted)acquireWakeLock();else releaseWakeLock();
     renderWakeStatus();
   };
+  $('#btnMenuWake').onclick=()=>$('#btnWake').onclick();
+  $('#btnWalkMenu').onclick=()=>$('#walkMenu').hidden?openWalkMenu():closeWalkMenu();
+  $('#btnMenuClose').onclick=()=>{closeWalkMenu();$('#btnWalkMenu').focus();};
+  document.addEventListener('keydown',e=>{
+    if($('#walkMenu').hidden)return;
+    if(e.key==='Escape'){closeWalkMenu();$('#btnWalkMenu').focus();}
+    if(e.key==='Tab'){
+      const buttons=[...$('#walkMenu').querySelectorAll('button')],first=buttons[0],last=buttons[buttons.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+  $('#scWalk').addEventListener('pointerdown',e=>{
+    if(!$('#walkMenu').hidden&&!e.target.closest('#walkMenu,#btnWalkMenu'))closeWalkMenu();
+  });
   $("#btnGo").onclick=()=>{
     mode="walk";startSession();show("scWalk");moveMapTo("mapHost");
     showDepartureHint();
     $("#walkMission").textContent="🎯 "+(session.mission_note||
       "Faire découvrir ton quartier à quelqu'un qui le visite.");
-    montrerRepere(9000);
-    /* v0.3.7 — le repere revient de lui-meme tant que la feuille n'a jamais servi,
-       puis toutes les 5 minutes de silence. Terrain du 03/09. */
-    setInterval(()=>{
-      if(mode!=="walk")return;
-      if(Date.now()-dernierUsageFeuille>300000)montrerRepere(7000);
-    },60000);
     tracLine=L.polyline([],{color:"#00152d",weight:5,opacity:.9}).addTo(map);
     startWatch();renderWakeStatus();acquireWakeLock();
   };
   $("#btnStar").onclick=()=>{
     const s=dropStar(null);if(!s)return;
     const b=$("#btnStar");
-    b.textContent=s.doublon?"⭐ Déjà notée ici — continue":"⭐ Notée — elle sortira, quoi qu'il arrive";
-    setTimeout(()=>b.textContent="⭐ Ici, quelque chose",1600);
+    b.textContent=s.doublon?"⭐ Déjà notée":"⭐ Notée";
+    setTimeout(()=>b.textContent="⭐ Marquer",1600);
   };
   /* v0.3.1 — liaison tactile robuste : sur iOS, clavier ouvert, le « click » d'un bouton
      dans une feuille absolue peut être avalé (bug vécu 21/08 : « Garder ce récit » muet).
@@ -1337,15 +1407,31 @@ document.addEventListener("DOMContentLoaded",()=>{
   /* v0.3.4 — filet brouillon : chaque frappe/dictée est copiée sur-le-champ ;
      un toucher perdu, une feuille fermée ou un plantage ne jettent plus un récit */
   const DRAFT_KEY="jw_cockpit_story_draft";
-  let storyDraft="";try{storyDraft=localStorage.getItem(DRAFT_KEY)||"";}catch(e){}
-  function clearStoryDraft(){storyDraft="";try{localStorage.removeItem(DRAFT_KEY);}catch(e){}}
+  const DRAFT_POSITION_KEY=DRAFT_KEY+'_position';
+  let storyDraft='',storyPosition=null;
+  try{storyDraft=localStorage.getItem(DRAFT_KEY)||'';
+    if(storyDraft)storyPosition=JSON.parse(localStorage.getItem(DRAFT_POSITION_KEY)||'null');
+  }catch(e){}
+  function rememberStoryPosition(){try{
+    localStorage.setItem(DRAFT_POSITION_KEY,JSON.stringify(storyPosition));
+  }catch(e){}}
+  function clearStoryDraft(){storyDraft='';storyPosition=null;try{
+    localStorage.removeItem(DRAFT_KEY);localStorage.removeItem(DRAFT_POSITION_KEY);
+  }catch(e){}}
   $("#storyTxt").addEventListener("input",function(){storyDraft=this.value;
-    try{localStorage.setItem(DRAFT_KEY,storyDraft);}catch(e){}});
-  sheetTap("#btnRaconte",()=>{
+    try{localStorage.setItem(DRAFT_KEY,storyDraft);}catch(e){}rememberStoryPosition();});
+  function beginStory(){
+    if(mode!=='walk')return;
+    if(!storyDraft||!storyPosition){
+      storyPosition=lastPos?{coords:{latitude:lastPos.coords.latitude,longitude:lastPos.coords.longitude}}:null;
+      rememberStoryPosition();
+    }
     $("#sheetMain").style.display="none";$("#sheetStory").style.display="block";
     /* v0.3.4 — un brouillon jamais sauvé revient au lieu d'être perdu */
     $("#storyTxt").value=storyDraft||"";$("#storyTxt").focus();
-  });
+  }
+  sheetTap("#btnRaconte",beginStory);
+  $('#btnRaconteIci').onclick=()=>{openSheet();beginStory();};
   sheetTap("#btnStoryCancel",()=>{
     clearStoryDraft();$("#storyTxt").value=""; /* v0.3.4 — Annuler = choix explicite */
     $("#sheetMain").style.display="block";$("#sheetStory").style.display="none";
@@ -1359,7 +1445,9 @@ document.addEventListener("DOMContentLoaded",()=>{
     const ta=$("#storyTxt");
     const t=(ta.value||storyDraft||"").trim();
     ta.blur();
-    const s=dropStar(t||null);
+    // Sans fix au toucher, le récit attend le premier lieu disponible.
+    if(!storyPosition&&lastPos){storyPosition={coords:{latitude:lastPos.coords.latitude,longitude:lastPos.coords.longitude}};rememberStoryPosition();}
+    const s=dropStar(t||null,storyPosition);
     if(!s){ /* v0.3.1 — GPS/état pas prêt : on n'avale JAMAIS un récit en silence */
       const f=$("#lmFiche");f.style.display="block";
       f.textContent="Position pas encore reçue — réessaie dans quelques secondes, ton texte est toujours là.";
@@ -1377,8 +1465,8 @@ document.addEventListener("DOMContentLoaded",()=>{
     /* v0.3.2 — fermer TOUT DE SUITE, confirmer sur l'écran de marche (carte pleine vue) */
     closeSheet();
     const b=$("#btnStar");
-    b.textContent=t?"✓ Récit gardé — ⭐ posée":"⭐ Notée !";
-    setTimeout(()=>b.textContent="⭐ Ici, quelque chose",2200);
+    b.textContent=t?"✓ Récit gardé":"⭐ Notée !";
+    setTimeout(()=>b.textContent="⭐ Marquer",2200);
   }catch(err){ /* v0.3.3 — une erreur ne reste JAMAIS silencieuse */
     const f=$("#lmFiche");f.style.display="block";
     f.textContent="Erreur à l'enregistrement : "+(err&&err.message?err.message:err)+
@@ -1428,6 +1516,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#btnPause").onclick=()=>{
     if(!confirm("Mettre la marche en pause ? Le GPS s'arrêtera jusqu'à Reprendre."))return;
     closeSheet();
+    distanceAnchor=null;closeWalkMenu();
     elapsedMs=walkedMs();runSince=null;pauseSince=Date.now();mode="paused";
     resetArrivalHint();
     stopWatch();releaseWakeLock();pushEvent("pause",null);
@@ -1435,7 +1524,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
   $("#btnResume").onclick=()=>{
     pushEvent("resume",Math.round((Date.now()-pauseSince)/60000)+" min");
-    pauseSince=null;runSince=Date.now();mode="walk";
+    distanceAnchor=null;pauseSince=null;runSince=Date.now();mode="walk";
     show("scWalk");moveMapTo("mapHost");startWatch();acquireWakeLock();
   };
   $("#btnArrive").onclick=()=>{
