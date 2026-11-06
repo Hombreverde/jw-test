@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.4.6)</title>
+<title>JW — Cockpit marcheur (prototype v0.4.7)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#7D3A5E">
@@ -183,6 +183,11 @@
   #toldStars{margin:0 0 14px;padding-left:24px;font-size:16px;color:var(--dim)}
   #toldStars:empty{display:none}
   textarea::placeholder,input[type=text]::placeholder{color:var(--dim);opacity:1}
+
+.circuit-stop{border-radius:50%;background:var(--card);color:var(--ink);border:2px solid #7D3A5E;text-align:center;font:bold 18px/28px sans-serif}#circuitOff{position:absolute;top:8px;left:8px;right:8px;z-index:600;background:var(--card);color:var(--ink);border-radius:12px;padding:8px}#circuitOff:empty{display:none}#circuitOff{display:flex;flex-wrap:wrap;align-items:center;gap:6px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+#circuitOff>:first-child{flex:1 1 calc(100% - 52px);font-weight:600}
+#circuitOff button{width:auto;flex:1 1 40%;min-height:42px;font-size:15px;padding:6px 8px;margin:0}
+#circuitOff button:last-child{order:-1;flex:0 0 40px;min-height:36px;width:40px;margin-left:auto;background:transparent;color:var(--ink);border:1px solid var(--line,#7E8894)} /* Claude 06/11 : bandeau compact */.maprow{position:relative}
 </style>
 </head>
 <body>
@@ -190,7 +195,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.6</span></header>
+    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.7</span></header>
   <div class="savealert" role="alert"></div>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
@@ -419,7 +424,7 @@ function computeTraceCoverage(samples, startedAt, endedAt, { thresholdS = 20 } =
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.4.6", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.4.7", SAVE_KEY="jw_cockpit_inprogress";
 /* v0.3.7 — boite de depot (wireframe du 18/08, etape 2 ; GO Jose du 03/09).
    Vide = pas de depot, on retombe sur la feuille de partage native comme avant.
    L'adresse complete, jeton compris, est donnee par install_jw_depot.sh. */
@@ -519,7 +524,7 @@ function projectOn(line,cum,lat,lon){
     const vx=bx-ax,vy=by-ay,L2=vx*vx+vy*vy;
     let t=L2?((px-ax)*vx+(py-ay)*vy)/L2:0;t=Math.max(0,Math.min(1,t));
     const c=Math.hypot(px-(ax+t*vx),py-(ay+t*vy));
-    if(c<best.cross)best={cross:c,along:cum[i]+t*(cum[i+1]-cum[i])};
+    if(c<best.cross)best={cross:c,along:cum[i]+t*(cum[i+1]-cum[i]),point:[alat+t*(blat-alat),alon+t*(blon-alon)]};
   }
   return best;
 }
@@ -687,10 +692,23 @@ function checkTraceInterruption(){
 function syncTraceCoverage(sess,endedAt,final=false){
   const result=computeTraceCoverage(sess.samples,sess.started_at,endedAt);
   const ranges=sess.trace_suspensions||[];
+  const reloads=(sess.events||[]).filter(e=>e.kind==="walk_continued_after_reload");
   result.gaps.forEach(g=>{
     const a=Date.parse(g.started_at),b=Date.parse(g.estimated_until||g.ended_at);
     if(ranges.some(r=>Date.parse(r.started_at)<=b&&(!r.ended_at||Date.parse(r.ended_at)>=a)))
       g.cause="page_suspendue";
+    if(reloads.some(e=>Date.parse(e.note)>=a&&Date.parse(e.note)<b&&Date.parse(e.timestamp)<=b)){g.cause="page_rechargee";delete g.ended_at_estimated;g.ended_at=g.estimated_until||g.ended_at;delete g.estimated_until;}
+  });
+  reloads.forEach(e=>{
+    const a=Date.parse(e.note),resume=Date.parse(e.timestamp);
+    const next=sess.samples.find(p=>Date.parse(p.timestamp)>=resume&&Date.parse(p.timestamp)>a);
+    if(!Number.isFinite(a))return;const b=next?Date.parse(next.timestamp):resume;if(b<=a)return;
+    if(!result.gaps.some(g=>Date.parse(g.started_at)<=a&&Date.parse(g.estimated_until||g.ended_at)>=b)){
+      result.gaps.push({gap_id:'gap_reload_'+e.event_id,started_at:e.note,ended_at:new Date(b).toISOString(),duration_s:Math.round((b-a)/1000),cause:'page_rechargee'});
+      result.gap_total_s+=Math.round((b-a)/1000);result.gap_count=result.gaps.length;
+      result.recorded_duration_s=Math.max(0,result.wall_duration_s-result.gap_total_s);
+      result.coverage_ratio=result.wall_duration_s?Number((result.recorded_duration_s/result.wall_duration_s).toFixed(2)):0;
+    }
   });
   sess.trace_gaps=result.gaps.filter(g=>final||!g.ended_at_estimated);
   sess.events=sess.events||[];
@@ -773,7 +791,8 @@ function onGeoErr(e){alert("Le téléphone ne donne pas la position ("+e.message
 function onPos(pos){
   if(mode!=="walk"||!session)return;
   if(!Number.isFinite(pos.timestamp)||(lastFixAt!=null&&pos.timestamp<=lastFixAt))return;
-  const c=pos.coords;lastPos=pos;
+  const c=pos.coords;lastPos=pos;updateCircuitOff(c);
+  if(circuit&&!circuitFramed){map.fitBounds(L.polyline([[c.latitude,c.longitude],circuit.ligne[0]]).getBounds(),{padding:[40,40],maxZoom:17});circuitFramed=true;lastTouchMs=Date.now();}
   if(!meMarker){
     meHalo=L.circle([c.latitude,c.longitude],{radius:c.accuracy,color:"#00152d",weight:1,fillOpacity:.1}).addTo(map);
     meMarker=L.marker([c.latitude,c.longitude],{zIndexOffset:1000,icon:L.divIcon({className:"",
@@ -850,7 +869,7 @@ function saveLocal(force){
   if(!force&&now-lastSave<15000)return Promise.resolve(false);lastSave=now;
   try{
     // Instantané pris à l'appel, avant toute attente : aucun événement ajouté.
-    const raw=JSON.stringify({session,observations,elapsedMs:walkedMs(),savedAt:now});
+    const raw=JSON.stringify({session,observations,elapsedMs:walkedMs(),savedAt:now,circuit});
     return queueBackup("put",raw).then(()=>{
       try{localStorage.removeItem(SAVE_KEY);}catch(e){}
       backupStatus(false);return true;
@@ -876,7 +895,7 @@ async function readBackup(){
 }
 async function offerRecovery(){
   const d=await readBackup();
-  if(mode!=="notice"||!d||!d.session||!(d.session.samples||[]).length)return;
+  if(mode!=="notice"||!d||!d.session||(d.session.ended_at&&!(d.session.samples||[]).length))return; /* Claude 06/11 : une marche arrivée mais pas envoyée reste récupérable */
   const host=document.querySelector("#scNotice .scroll");if(!host)return;
   const box=document.createElement("div");box.className="warnbox";
   box.innerHTML="<b>Une marche non terminée a été retrouvée</b> — "+d.session.samples.length+
@@ -887,16 +906,23 @@ async function offerRecovery(){
   b.addEventListener("pointerdown",e=>{e.preventDefault();recover();});
   b.onclick=recover;
   host.insertBefore(box,host.firstChild);host.insertBefore(b,box.nextSibling);
+  if(!d.session.ended_at&&Date.now()-Number(d.savedAt)<3*3600000&&Date.now()>=Number(d.savedAt)){
+    const cont=document.createElement("button");cont.id="btnContinue";cont.className="primary";
+    cont.textContent="▶ Continuer cette marche";cont.onclick=()=>continueWalk(d);
+    host.insertBefore(cont,b);
+  }
 }
 async function recoverWalk(d){
   clearInterval(tick);stopWatch();mode="analyse";releaseWakeLock();
   try{
+  await circuitReady;useCircuit(d.circuit&&validCircuit(d.circuit,d.circuit.id)?d.circuit:null);
   session=d.session;observations=d.observations||[];
+  session.circuit_ref=circuit?circuit.id:null;
   session.samples=session.samples||[];session.events=session.events||[];session.stars=session.stars||[];
   if(session.app_version!==APP_VERSION)session.recorded_app_version=session.app_version;
   session.app_version=APP_VERSION;session.end_reason="recovered_after_interruption";
   /* Une reprise à 20 h ne prolonge jamais une marche terminée à 18 h. */
-  const last=session.samples[session.samples.length-1];
+  const last=session.samples[session.samples.length-1]||{timestamp:session.started_at};
   session.ended_at=session.ended_at||new Date(Math.max(Date.parse(last.timestamp),
     Number(d.savedAt)||Date.parse(last.timestamp))).toISOString();
   elapsedMs=Number(d.elapsedMs)||Number(session.walking_time_s)*1000||0;
@@ -921,7 +947,7 @@ function pushEvent(kind,note){if(session){session.events.push({event_id:"e"+sess
   timestamp:new Date().toISOString(),kind,note:note||null});saveLocal(true);}}
 function startSession(){
   const t0=Date.now();runSince=t0;elapsedMs=0;
-  distanceM=0;distanceAnchor=null;lastPos=null;closeWalkMenu();
+  distanceM=0;distanceAnchor=null;lastPos=null;offSinceCircuit=null;offVisible=false;guideOn=false;offUntil=0;clearCircuitGuide();if($('#circuitOff'))$('#circuitOff').replaceChildren();closeWalkMenu();
   $('#walkMission').textContent='🎯 '+($('#missionNote').value.trim()||"Faire découvrir ton quartier à quelqu'un qui le visite.");
   $('#walkMission').style.display='block';clearTimeout(missionTimer);
   missionTimer=setTimeout(hideWalkMission,60000);renderWalkTime();
@@ -930,10 +956,11 @@ function startSession(){
     walk_kind:"free_resident_walk",app_version:APP_VERSION,schema_version:"0.3+fo0.4+gap0.1",
     device_class:"ios",started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:null,compass_enabled:orientOn,
-    mission_note:$("#missionNote").value.trim()||null,closing_note:null,
+    mission_note:$("#missionNote").value.trim()||null,closing_note:null,circuit_ref:circuit?circuit.id:null,
     conventional_ref:null,samples:[],events:[],stars:[],trace_gaps:[],trace_suspensions:[]};
   setTraceState("attente_position");
   pushEvent("start","Départ marcheur");
+  if(circuitRequest)pushEvent(circuit?"circuit_loaded":"circuit_missing",circuit?circuit.id:circuitRequest);
   tick=setInterval(()=>{
     if(mode==="walk"){checkTraceInterruption();renderWalkTime();}
     if(mode==="paused"&&pauseSince)$("#pauseFor").textContent="en pause depuis "+fmtT((Date.now()-pauseSince)/1000);
@@ -1056,7 +1083,8 @@ function buildDebriefMap(conv){
   if(dMap){dMap.remove();}
   dMap=L.map("mapDebrief",{zoomControl:false});
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(dMap);
-  if(conv)L.polyline(conv,{color:"#171712",weight:4,opacity:.7,dashArray:"6 8"}).addTo(dMap);
+  if(circuit)drawCircuit(dMap);
+  if(conv&&!circuit)L.polyline(conv,{color:"#171712",weight:4,opacity:.7,dashArray:"6 8"}).addTo(dMap);
   const own=session.samples.map(s=>[s.latitude,s.longitude]);
   L.polyline(own,{color:"#00152d",weight:5,opacity:.95}).addTo(dMap);
   [...toldMoments,...moments].forEach((m,i)=>{
@@ -1346,10 +1374,107 @@ function closeSheet(){
   $("#sheet").style.bottom=""; /* v0.3.4 — défaire l'arrimage clavier */
 }
 
+
+/* 0.4.7 — circuit, guide et reprise. Les copies archivées ne sont jamais purgées implicitement. */
+let circuit=null,circuitLayers=[],circuitFramed=false,circuitReady=Promise.resolve();
+let circuitRequest=null,offSinceCircuit=null,offUntil=0,offVisible=false,guideOn=false,guideLine=null,departBusy=false;
+const ARCHIVE_KEY="jw_cockpit_archives_047";
+function validCircuit(d,id){
+  const coord=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a)<=90&&Math.abs(b)<=180;
+  return !!(d&&d.schema==="jw-circuit-0.1"&&d.id===id&&/^[a-z0-9-]{1,40}$/.test(d.id)&&
+    typeof d.titre==="string"&&d.titre.length>0&&d.titre.length<=300&&Array.isArray(d.ligne)&&d.ligne.length>=2&&d.ligne.length<=5000&&
+    d.ligne.every(p=>Array.isArray(p)&&p.length===2&&coord(...p))&&Array.isArray(d.arrets)&&d.arrets.length<=60&&
+    d.arrets.every(a=>a&&Number.isInteger(a.n)&&a.n>0&&a.n<=60&&typeof a.nom==="string"&&a.nom.length<=300&&coord(a.lat,a.lon)));
+}
+function circuitBadge(text){
+  let el=$('#circuitBadge');if(!el){el=document.createElement('p');el.id='circuitBadge';$('#scPrep .scroll').prepend(el);}el.textContent=text;
+}
+function drawCircuit(m){
+  const layers=[L.polyline(circuit.ligne,{color:'#7D3A5E',weight:4,dashArray:'6 8'}).addTo(m)];
+  circuit.arrets.forEach(a=>{const label=document.createElement('span');label.textContent=a.nom;
+    layers.push(L.marker([a.lat,a.lon],{icon:L.divIcon({className:'circuit-stop',html:String(a.n),iconSize:[30,30]})}).addTo(m).bindPopup(label));});
+  return layers;
+}
+function useCircuit(d){
+  circuitLayers.forEach(l=>map.removeLayer(l));circuitLayers=[];circuit=d;circuitFramed=false;
+  if(d){circuitLayers=drawCircuit(map);circuitBadge('🧭 Circuit : '+d.titre);if(!$('#missionNote').value.trim())$('#missionNote').value=d.titre;}
+}
+async function loadCircuit(){
+  const id=new URL(window.location.href).searchParams.get('circuit');
+  if(!id||!/^[a-z0-9-]{1,40}$/.test(id))return;
+  circuitRequest=id;const key='jw_circuit_'+id;let d=null;
+  try{const r=await fetch('circuits/'+id+'.json');if(!r.ok)throw Error('missing');d=await r.json();if(!validCircuit(d,id))throw Error('invalid');
+    try{localStorage.setItem(key,JSON.stringify(d));}catch(e){}
+  }catch(e){try{d=JSON.parse(localStorage.getItem(key));}catch(e){}if(!validCircuit(d,id))d=null;}
+  if(d)useCircuit(d);else circuitBadge('Circuit introuvable — tu peux marcher sans.');
+}
+function offBox(){let el=$('#circuitOff');if(!el){el=document.createElement('div');el.id='circuitOff';$('#scWalk .maprow').appendChild(el);}return el;}
+function clearCircuitGuide(){if(guideLine){map.removeLayer(guideLine);guideLine=null;}}
+function updateCircuitOff(c){
+  if(!circuit||mode!=='walk'||!Number.isFinite(c.accuracy)||c.accuracy>35){offSinceCircuit=null;return;}
+  const pr=projectOn(circuit.ligne,cumOf(circuit.ligne),c.latitude,c.longitude),now=Date.now();
+  if(pr.cross<25){if(offVisible||guideOn)pushEvent('off_route_cleared',null);offVisible=false;guideOn=false;offSinceCircuit=null;offBox().replaceChildren();clearCircuitGuide();return;}
+  if(pr.cross<=45){offSinceCircuit=null;if(!offVisible)return;}
+  else if(offSinceCircuit==null)offSinceCircuit=now;
+  if(now<offUntil)return;
+  if(!offVisible&&offSinceCircuit!=null&&now-offSinceCircuit>=20000){offVisible=true;pushEvent('off_route_shown',Math.round(pr.cross));}
+  if(!offVisible)return;
+  const box=offBox();box.replaceChildren();
+  const title=document.createElement('div');title.textContent=guideOn?'↩ '+Math.round(pr.cross)+' m':'🧭 Tu explores hors du circuit ?';box.appendChild(title);
+  const button=(text,fn)=>{const b=document.createElement('button');b.textContent=text;b.onclick=fn;box.appendChild(b);};
+  button('⏸ Pause — j’explore',()=>{pushEvent('off_route_pause',null);$('#btnPause').click();});
+  button('↩ Me ramener',()=>{guideOn=true;pushEvent('off_route_guide',null);updateCircuitOff(c);});
+  button('×',()=>{offUntil=Date.now()+300000;offVisible=false;guideOn=false;box.replaceChildren();clearCircuitGuide();pushEvent('off_route_dismissed',null);});
+  if(guideOn){clearCircuitGuide();guideLine=L.polyline([[c.latitude,c.longitude],pr.point],{color:'#7D3A5E',weight:2}).addTo(map);}
+}
+function archives(){const raw=localStorage.getItem(ARCHIVE_KEY);const a=raw?JSON.parse(raw):[];if(!Array.isArray(a))throw Error('archives invalides');return a;}
+async function protectDeparture(){
+  try{const d=await readBackup();if(backupFailed)throw Error('lecture impossible');if(!d||!d.session||(d.session.ended_at&&!(d.session.samples||[]).length))return true; /* Claude 06/11 : toute marche non envoyée est mise de côté, terminée ou non */
+    const a=archives();if(a.length>=3){alert('Trois marches sont mises de côté. Récupère une marche d’abord.');return false;}
+    if(!confirm("Une marche pas encore envoyée est gardée sur ce téléphone. La nouvelle marche la met de côté — elle n'est pas effacée."))return false;
+    d.session.events=d.session.events||[];
+    const event={event_id:'e'+d.session.events.length,timestamp:new Date().toISOString(),kind:'walk_archived',note:null};
+    d.session.events.push(event);a.push(d);localStorage.setItem(ARCHIVE_KEY,JSON.stringify(a));return true;
+  }catch(e){alert('Impossible de mettre la marche de côté. Récupère-la avant un nouveau départ.');return false;}
+}
+function renderArchives(){
+  try{archives().forEach((d,i)=>{const b=document.createElement('button');b.className='ghost';b.textContent='Marche mise de côté '+(i+1)+' — Récupérer et raconter';
+    b.onclick=async()=>{if(departBusy)return;departBusy=true;try{
+      // Sauver la marche courante avant de travailler sur une archive.
+      const a=archives(),idx=a.findIndex(x=>x.session.session_id===d.session.session_id&&x.savedAt===d.savedAt);
+      if(idx<0)return;const current=await readBackup();if(backupFailed)throw Error('lecture impossible');
+      if(current&&current.session&&(!current.session.ended_at||(current.session.samples||[]).length)){
+        if(!confirm("Une marche pas encore envoyée est gardée sur ce téléphone. La nouvelle marche la met de côté — elle n'est pas effacée."))return;
+        // L'archive choisie reste stockée jusqu'à la transaction IndexedDB réussie.
+        if(a.length>=3){alert('Récupère d’abord la marche en cours pour libérer une place.');return;}
+        current.session.events.push({event_id:'e'+current.session.events.length,timestamp:new Date().toISOString(),kind:'walk_archived',note:null});a.push(current);localStorage.setItem(ARCHIVE_KEY,JSON.stringify(a));
+      }
+      await queueBackup('put',JSON.stringify(d));a.splice(idx,1);localStorage.setItem(ARCHIVE_KEY,JSON.stringify(a));
+      useCircuit(d.circuit&&validCircuit(d.circuit,d.circuit.id)?d.circuit:null);await recoverWalk(d);
+    }catch(e){alert('La récupération a échoué. Les copies restent gardées sur ce téléphone.');}finally{departBusy=false;}};{const host=$('#scNotice .scroll');const after=[...(host.children||[])].find(n=>n.matches&&!n.matches('.warnbox,button'));if(after&&host.insertBefore)host.insertBefore(b,after);else host.appendChild(b);} /* Claude 06/11 : archives en haut, visibles */});}catch(e){alert('Les archives ne sont pas lisibles. Aucun nouveau départ ne les effacera.');}
+}
+async function continueWalk(d){
+  if(departBusy)return;departBusy=true;try{
+    if(d.session.ended_at||Date.now()-d.savedAt>=10800000)return;
+    await circuitReady;useCircuit(d.circuit&&validCircuit(d.circuit,d.circuit.id)?d.circuit:null);
+    session=d.session;observations=d.observations||[];elapsedMs=d.elapsedMs||0;runSince=Date.now();pauseSince=null;
+    $('#missionNote').value=session.mission_note||'';session.circuit_ref=circuit?circuit.id:null;session.app_version=APP_VERSION;
+    const last=session.samples[session.samples.length-1];lastFixAt=last?Date.parse(last.timestamp):null;
+    mode='walk';distanceM=0;distanceAnchor=null;session.samples.forEach((p,i,a)=>{if(i)distanceM+=hav(a[i-1].latitude,a[i-1].longitude,p.latitude,p.longitude);});
+    pushEvent('walk_continued_after_reload',last?last.timestamp:session.started_at);
+    syncTraceCoverage(session,new Date().toISOString());setTraceState('trace_interrompue');show('scWalk');moveMapTo('mapHost');
+    tracLine=L.polyline(session.samples.map(p=>[p.latitude,p.longitude]),{color:'#00152d',weight:5,opacity:.9}).addTo(map);
+    session.stars.forEach(s=>L.circleMarker([s.lat,s.lon],{radius:9,color:'#14181D',weight:3,fillColor:'#FFF1B8',fillOpacity:.5}).addTo(map));
+    $('#walkMission').textContent='🎯 '+(session.mission_note||'Faire découvrir ton quartier à quelqu’un qui le visite.');renderWalkTime();
+    tick=setInterval(()=>{if(mode==='walk'){checkTraceInterruption();renderWalkTime();}},5000);
+    startWatch();renderWakeStatus();acquireWakeLock();await saveLocal(true);
+  }finally{departBusy=false;}
+}
+
 document.addEventListener("DOMContentLoaded",()=>{
   $("#versionBadge").textContent=APP_VERSION;
   if(!initMap())return;
-  offerRecovery();
+  offerRecovery();renderArchives();circuitReady=loadCircuit();
   map.on("click",openSheet);
   $("#btnAccept").onclick=()=>{$("#sessCode").textContent=newCode();show("scPrep");};
   $("#btnComp").onclick=enableCompass;
@@ -1373,13 +1498,17 @@ document.addEventListener("DOMContentLoaded",()=>{
   $('#scWalk').addEventListener('pointerdown',e=>{
     if(!$('#walkMenu').hidden&&!e.target.closest('#walkMenu,#btnWalkMenu'))closeWalkMenu();
   });
-  $("#btnGo").onclick=()=>{
+  $("#btnGo").onclick=async()=>{
+    if(departBusy)return;departBusy=true;
+    try{if(!await protectDeparture())return;
+    await circuitReady;
     mode="walk";startSession();show("scWalk");moveMapTo("mapHost");
     showDepartureHint();
     $("#walkMission").textContent="🎯 "+(session.mission_note||
       "Faire découvrir ton quartier à quelqu'un qui le visite.");
     tracLine=L.polyline([],{color:"#00152d",weight:5,opacity:.9}).addTo(map);
     startWatch();renderWakeStatus();acquireWakeLock();
+    }finally{departBusy=false;}
   };
   $("#btnStar").onclick=()=>{
     const s=dropStar(null);if(!s)return;
@@ -1518,7 +1647,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     closeSheet();
     distanceAnchor=null;closeWalkMenu();
     elapsedMs=walkedMs();runSince=null;pauseSince=Date.now();mode="paused";
-    resetArrivalHint();
+    resetArrivalHint();offSinceCircuit=null;
     stopWatch();releaseWakeLock();pushEvent("pause",null);
     $("#pauseFor").textContent="en pause depuis 0 min";show("scPause");
   };
