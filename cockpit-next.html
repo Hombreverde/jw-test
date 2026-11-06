@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.4.7)</title>
+<title>JW — Cockpit marcheur (prototype v0.4.7.1)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#7D3A5E">
@@ -195,7 +195,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.7</span></header>
+    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.7.1</span></header>
   <div class="savealert" role="alert"></div>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
@@ -424,7 +424,7 @@ function computeTraceCoverage(samples, startedAt, endedAt, { thresholdS = 20 } =
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.4.7", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.4.7.1", SAVE_KEY="jw_cockpit_inprogress";
 /* v0.3.7 — boite de depot (wireframe du 18/08, etape 2 ; GO Jose du 03/09).
    Vide = pas de depot, on retombe sur la feuille de partage native comme avant.
    L'adresse complete, jeton compris, est donnee par install_jw_depot.sh. */
@@ -568,8 +568,12 @@ document.addEventListener("visibilitychange",()=>{
   }else releaseWakeLock();
 });
 if(window.visualViewport)visualViewport.addEventListener("resize",refreshMapSize);
+/* 0.4.7.1 — sans position GPS, la carte restait sur Ottawa (vue par défaut) alors que le circuit
+   était à Paris (Myriam, 06/11) : tant qu'aucun point n'est reçu, on cadre le circuit. */
+function frameCircuitIfIdle(){if(circuit&&!circuitFramed&&!meMarker)
+  map.fitBounds(L.polyline(circuit.ligne).getBounds(),{padding:[40,40],maxZoom:17});}
 const moveMapTo=hostId=>{document.getElementById(hostId).appendChild(map.getContainer());
-  setTimeout(()=>map.invalidateSize(),120);};
+  setTimeout(()=>{map.invalidateSize();frameCircuitIfIdle();},120);};
 
 /* ═══ BOUSSOLE (reprise v0.5.1) ═══ */
 function applyHeading(){if(!meMarker)return;const el=meMarker.getElement();if(!el)return;
