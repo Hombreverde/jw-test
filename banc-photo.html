@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>JW — banc photo</title>
+<style>
+/* Banc d'essai des trous de photos (07/11) — une colonne, gros boutons, thème clair seul (usage en plein air). */
+:root{--encre:#14181D;--fond:#FFFCF5;--habit:#7D3A5E;--vert:#1E7B45;--rouge:#B3261E;--trait:#D9CFC4;
+ --corps:"Atkinson Hyperlegible",system-ui,-apple-system,sans-serif;color-scheme:light}
+body{margin:0;background:var(--fond);color:var(--encre);font:19px/1.45 var(--corps);
+ padding:16px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:2px solid var(--habit);padding-bottom:8px}
+h1{font-size:26px;margin:0;color:var(--habit)}
+#ver{font-size:14px}
+#etat{margin:14px 0;padding:12px;border:2px solid var(--encre);border-radius:10px;font-variant-numeric:tabular-nums}
+ol{padding-left:1.3em;margin:10px 0 16px}
+li{margin-bottom:6px}
+.boutons{display:grid;gap:12px}
+button{font:inherit;font-weight:700;min-height:66px;border-radius:12px;border:3px solid var(--encre);background:#fff;color:var(--encre);padding:10px}
+button:focus-visible{outline:4px solid var(--habit);outline-offset:2px}
+#go{background:var(--vert);border-color:var(--vert);color:#fff}
+#cam{background:var(--habit);border-color:var(--habit);color:#fff}
+button:disabled{opacity:.45}
+#file{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+#photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#photos img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:2px solid var(--trait)}
+#res{margin-top:18px;padding:14px;border:3px solid var(--habit);border-radius:12px}
+#res h2{margin:0 0 8px;font-size:22px}
+#verdict{font-size:22px;font-weight:700;margin:6px 0 12px}
+#res table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:17px}
+#res td,#res th{border-bottom:1px solid var(--trait);padding:6px 4px;text-align:left;vertical-align:top}
+.ok{color:var(--vert);font-weight:700}.ko{color:var(--rouge);font-weight:700}
+</style>
+</head>
+<body>
+<header><h1>📷 Banc photo</h1><span id="ver">banc-photo 0.1</span></header>
+
+<section id="etat">GPS : <b id="gps">pas démarré</b> · <b id="nb">0</b> points · dernier il y a <b id="age">–</b></section>
+
+<ol>
+ <li>Dans la rue, appuie sur <b>Départ</b> et autorise la position.</li>
+ <li>Marche doucement. Prends <b>3 photos avec le bouton 📷 violet</b>, en marchant un peu entre chacune.</li>
+ <li>Prends ensuite <b>3 photos avec l'appareil photo de l'iPhone</b>, comme d'habitude, et reviens dans Chrome après chacune.</li>
+ <li>Appuie sur <b>Fin</b> et fais une capture d'écran du résultat.</li>
+</ol>
+
+<div class="boutons">
+ <button id="go" type="button">▶ Départ</button>
+ <button id="cam" type="button" disabled>📷 Photo dans la page</button>
+ <input id="file" type="file" accept="image/*" capture="environment">
+ <button id="fin" type="button" disabled>🏁 Fin — voir le résultat</button>
+</div>
+<div id="photos"></div>
+
+<section id="res" hidden>
+ <h2>Résultat</h2>
+ <div id="verdict"></div>
+ <table><thead><tr><th>Photo</th><th>Trou GPS</th><th>Page cachée</th></tr></thead><tbody id="lignes"></tbody></table>
+ <p id="resume"></p>
+ <div class="boutons"><button id="partager" type="button">Envoyer le détail</button><button id="raz" type="button">Recommencer</button></div>
+</section>
+
+<script>
+const VERSION="banc-photo 0.1", CLE="jw_banc_photo_v01", TROU_S=5;
+let s={debut:null,fin:null,fixes:[],ev:[]}, watch=null, wake=null;
+const $=id=>document.getElementById(id);
+
+function sauver(){try{localStorage.setItem(CLE,JSON.stringify(s));}catch(e){}}
+function ev(kind,extra){s.ev.push(Object.assign({t:Date.now(),kind},extra||{}));sauver();}
+
+document.addEventListener("visibilitychange",()=>{
+ ev("visibilite_"+document.visibilityState);
+ if(document.visibilityState==="visible"&&s.debut&&!s.fin)maintenir();
+});
+addEventListener("pagehide",()=>ev("pagehide"));
+addEventListener("pageshow",e=>ev("pageshow",{persisted:e.persisted}));
+
+async function maintenir(){
+ try{if(navigator.wakeLock&&!wake){wake=await navigator.wakeLock.request("screen");wake.addEventListener("release",()=>{wake=null;});}}
+ catch(e){ev("wakelock_refuse",{msg:String(e&&e.message||e)});}
+}
+function demarrerGps(){
+ if(!navigator.geolocation){$("gps").textContent="indisponible";return;}
+ watch=navigator.geolocation.watchPosition(p=>{
+  s.fixes.push({t:Date.now(),acc:Math.round(p.coords.accuracy),lat:+p.coords.latitude.toFixed(6),lon:+p.coords.longitude.toFixed(6)});
+  if(s.fixes.length%10===0)sauver();
+  $("gps").textContent="actif ("+Math.round(p.coords.accuracy)+" m)";
+ },err=>{ev("gps_erreur",{code:err.code,msg:err.message});$("gps").textContent="refusé : "+err.message;},
+ {enableHighAccuracy:true,maximumAge:0,timeout:30000});
+ maintenir();
+}
+function boutons(){
+ const enCours=!!s.debut&&!s.fin;
+ $("go").disabled=enCours; $("cam").disabled=!enCours; $("fin").disabled=!enCours;
+ $("go").textContent=s.fin?"▶ Nouveau départ":"▶ Départ";
+}
+setInterval(()=>{
+ $("nb").textContent=s.fixes.length;
+ const d=s.fixes.length?s.fixes[s.fixes.length-1].t:null;
+ $("age").textContent=d?Math.round((Date.now()-d)/1000)+" s":"–";
+},1000);
+
+$("go").addEventListener("click",()=>{
+ s={debut:Date.now(),fin:null,fixes:[],ev:[]};$("photos").innerHTML="";$("res").hidden=true;
+ ev("depart",{ua:navigator.userAgent,version:VERSION});demarrerGps();boutons();
+});
+$("cam").addEventListener("click",()=>{ev("photo_page_ouverte");$("file").value="";$("file").click();});
+$("file").addEventListener("change",()=>{
+ const f=$("file").files&&$("file").files[0];
+ if(!f){ev("photo_page_annulee");return;}
+ ev("photo_page_recue",{ko:Math.round(f.size/1024),type:f.type});
+ const img=new Image();img.alt="photo "+s.ev.filter(e=>e.kind==="photo_page_recue").length;
+ img.src=URL.createObjectURL(f);$("photos").appendChild(img);
+});
+$("file").addEventListener("cancel",()=>ev("photo_page_annulee"));
+$("fin").addEventListener("click",()=>{
+ ev("fin");s.fin=Date.now();sauver();
+ if(watch!==null)navigator.geolocation.clearWatch(watch);watch=null;
+ if(wake){wake.release().catch(()=>{});wake=null;}
+ boutons();resultat();
+});
+$("raz").addEventListener("click",()=>{try{localStorage.removeItem(CLE);}catch(e){}location.reload();});
+$("partager").addEventListener("click",async()=>{
+ const texte=JSON.stringify({version:VERSION,resume:$("resume").textContent,episodes:analyser(),evenements:s.ev,
+  fixes:s.fixes.map(f=>[f.t-s.debut,f.acc])});
+ try{if(navigator.share){await navigator.share({title:"JW banc photo",text:texte});return;}}catch(e){if(e&&e.name==="AbortError")return;}
+ try{await navigator.clipboard.writeText(texte);$("partager").textContent="Copié ✓";}catch(e){$("partager").textContent="Partage impossible";}
+});
+
+// Plus long intervalle entre deux points GPS consécutifs autour de [a, b].
+function trouAutour(a,b){
+ const f=s.fixes;let i0=0;while(i0<f.length-1&&f[i0+1].t<=a)i0++;
+ let max=0;for(let i=i0;i<f.length-1&&f[i].t<=b;i++)max=Math.max(max,f[i+1].t-f[i].t);
+ if(f.length&&f[f.length-1].t<b)max=Math.max(max,b-f[f.length-1].t);
+ return Math.round(max/1000);
+}
+function cacheEntre(a,b){
+ let ms=0,depuis=null;
+ for(const e of s.ev){if(e.t<a-1000||e.t>b+1000)continue;
+  if(e.kind==="visibilite_hidden"&&depuis===null)depuis=e.t;
+  if(e.kind==="visibilite_visible"&&depuis!==null){ms+=e.t-depuis;depuis=null;}}
+ return Math.round(ms/1000);
+}
+function analyser(){
+ const out=[];let ouvert=null,n=0;
+ for(const e of s.ev){
+  if(e.kind==="photo_page_ouverte")ouvert=e.t;
+  if((e.kind==="photo_page_recue"||e.kind==="photo_page_annulee")&&ouvert!==null){
+   n++;out.push({type:"page",n,annulee:e.kind==="photo_page_annulee",duree_s:Math.round((e.t-ouvert)/1000),
+    trou_s:trouAutour(ouvert,e.t+3000),cache_s:cacheEntre(ouvert,e.t),t:ouvert});ouvert=null;}
+ }
+ // Sorties de Chrome hors bouton 📷 : appareil photo de l'iPhone, autre app, verrouillage.
+ let cache=null,m=0;
+ for(const e of s.ev){
+  if(e.kind==="visibilite_hidden")cache=e.t;
+  if(e.kind==="visibilite_visible"&&cache!==null){
+   const pendantPage=out.some(p=>p.type==="page"&&cache>=p.t-1000&&cache<=p.t+p.duree_s*1000+1000);
+   if(!pendantPage){m++;out.push({type:"sortie",n:m,duree_s:Math.round((e.t-cache)/1000),trou_s:trouAutour(cache,e.t+3000),cache_s:Math.round((e.t-cache)/1000),t:cache});}
+   cache=null;}
+ }
+ return out.sort((x,y)=>x.t-y.t);
+}
+function resultat(){
+ const ep=analyser(),page=ep.filter(e=>e.type==="page"&&!e.annulee),sortie=ep.filter(e=>e.type==="sortie");
+ $("lignes").innerHTML=ep.map(e=>`<tr><td>${e.type==="page"?"📷 page n° "+e.n+(e.annulee?" (annulée)":""):"Sortie de Chrome n° "+e.n}</td>`+
+  `<td class="${e.trou_s>TROU_S?"ko":"ok"}">${e.trou_s} s</td><td>${e.cache_s?e.cache_s+" s":"non"}</td></tr>`).join("");
+ const pageOk=page.length&&page.every(e=>e.trou_s<=TROU_S);
+ $("verdict").innerHTML=!page.length?"Aucune photo prise avec le bouton 📷.":
+  pageOk?'<span class="ok">✅ Le bouton 📷 garde la trace.</span>':'<span class="ko">❌ Le bouton 📷 coupe aussi la trace.</span>';
+ const trous=[];for(let i=1;i<s.fixes.length;i++){const d=(s.fixes[i].t-s.fixes[i-1].t)/1000;if(d>TROU_S)trous.push(d);}
+ const rech=s.ev.filter(e=>e.kind==="page_rechargee").length;
+ $("resume").textContent=`${VERSION} · ${Math.round((s.fin-s.debut)/60000)} min · ${s.fixes.length} points · `+
+  `${trous.length} trou(s) > ${TROU_S} s, ${Math.round(trous.reduce((a,b)=>a+b,0))} s en tout`+(rech?` · page rechargée ${rech} fois`:"");
+ $("res").hidden=false;$("res").scrollIntoView({block:"start"});
+}
+
+// Si Chrome a rechargé la page pendant l'essai, on garde ce qui était noté et on relance le GPS.
+try{const r=JSON.parse(localStorage.getItem(CLE)||"null");
+ if(r&&r.debut){s=r;if(!s.fin){ev("page_rechargee");demarrerGps();}else resultat();}}catch(e){}
+boutons();
+</script>
+</body>
+</html>
