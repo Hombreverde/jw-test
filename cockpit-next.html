@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>JW — Cockpit marcheur (prototype v0.4.7.1)</title>
+<title>JW — Cockpit marcheur (prototype v0.4.8)</title>
 <link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
 <link rel="icon" type="image/png" href="jw-cockpit-icon-180.png">
 <meta name="theme-color" content="#7D3A5E">
@@ -171,7 +171,12 @@
   #walkMission{position:absolute;top:10px;left:10px;right:10px;z-index:500;background:var(--card);color:var(--ink);border:2px solid var(--acc);border-radius:10px;padding:8px 10px}
   #scWalk>.panel{padding:10px 14px env(safe-area-inset-bottom);background:var(--bg)}
   .walkRow{display:grid;gap:9px;grid-template-columns:1.55fr 1fr}
-  .walkRow.second{grid-template-columns:1fr 1.25fr;margin-top:9px}
+  .walkRow.second{grid-template-columns:1fr 1fr 1.25fr;margin-top:9px}
+  /* 0.4.8 — 📷 dans la page : le GPS continue pendant la photo (banc d'Isabelle, 07/11 : trou de 1 s) */
+  #btnPhoto{margin:0;background:var(--card);color:var(--ink,#14181D);border:2px solid currentColor}
+  #photoToast{display:none;margin-top:8px;padding:8px 10px;border-radius:10px;background:#E8F5E9;color:#1B5E20;font-size:16px;font-weight:600;text-align:center}
+  #photoToast.err{background:#FDECEA;color:#8E1C12}
+  #btnPhotos{margin-top:12px}
   .walkRow button{margin:0;width:100%;padding:8px;font-size:19px;min-height:76px}
   .walkRow.second button{min-height:52px;font-size:17px}
   #btnPause{width:100%}
@@ -195,7 +200,7 @@
 <!-- ═══ 1. NOTICE (Gate 1b) ═══ -->
 <section id="scNotice" class="screen on">
   <header><h1>Journey Walker — Cockpit marcheur</h1>
-    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.7.1</span></header>
+    <span class="chip live" id="versionBadge">jw-cockpit-marcheur-0.4.8</span></header>
   <div class="savealert" role="alert"></div>
   <div class="scroll">
     <p class="eyebrow">Avant de marcher — la notice, en clair</p>
@@ -257,8 +262,11 @@
     <div id="saveAlert" class="savealert" role="alert"></div>
     <div class="walkRow second">
       <button id="btnPause" class="warn mini">Pause</button>
+      <button id="btnPhoto" class="mini" aria-label="Prendre une photo sans quitter le Cockpit">📷 Photo</button>
       <button id="btnArrive">🏁 Arrivée…</button>
     </div>
+    <div id="photoToast" role="status" aria-live="polite"></div>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
   </div>
   <div id="walkMenu" class="walkMenu" role="dialog" aria-label="Menu de la marche" hidden>
     <p id="menuMission"></p>
@@ -381,6 +389,8 @@
   <header><h1>Merci</h1></header>
   <div class="savealert" role="alert"></div>
   <div class="scroll"><p class="lead" id="doneTxt" role="status" aria-live="polite">—</p>
+    <button id="btnPhotos" style="display:none">📷 Enregistrer mes photos</button>
+    <p id="photosTxt" class="lead" style="display:none"></p>
     <button id="btnSendOther" style="display:none">Envoyer autrement</button>
     <button id="btnBackToSave" class="ghost" style="display:none">Revenir à ma marche</button></div>
 </section>
@@ -424,7 +434,7 @@ function computeTraceCoverage(samples, startedAt, endedAt, { thresholdS = 20 } =
 /* ═══ RÉGLAGES (cadre v0.1 §2/§4 — seuils par défaut, à calibrer à Ottawa) ═══ */
 const DIVERGE_M=25, DIVERGE_S=60, DWELL_S=120, DWELL_R=15, MAX_MOMENTS=5;
 const OSRM="https://routing.openstreetmap.de/routed-foot/route/v1/driving/"; // serveur FOSSGIS, profil piéton
-const APP_VERSION="jw-cockpit-marcheur-0.4.7.1", SAVE_KEY="jw_cockpit_inprogress";
+const APP_VERSION="jw-cockpit-marcheur-0.4.8", SAVE_KEY="jw_cockpit_inprogress";
 /* v0.3.7 — boite de depot (wireframe du 18/08, etape 2 ; GO Jose du 03/09).
    Vide = pas de depot, on retombe sur la feuille de partage native comme avant.
    L'adresse complete, jeton compris, est donnee par install_jw_depot.sh. */
@@ -696,11 +706,14 @@ function checkTraceInterruption(){
 function syncTraceCoverage(sess,endedAt,final=false){
   const result=computeTraceCoverage(sess.samples,sess.started_at,endedAt);
   const ranges=sess.trace_suspensions||[];
+  const pauses=sess.pauses||[]; /* 0.4.8 — une Pause touchée n'est pas une perte de signal */
   const reloads=(sess.events||[]).filter(e=>e.kind==="walk_continued_after_reload");
   result.gaps.forEach(g=>{
     const a=Date.parse(g.started_at),b=Date.parse(g.estimated_until||g.ended_at);
     if(ranges.some(r=>Date.parse(r.started_at)<=b&&(!r.ended_at||Date.parse(r.ended_at)>=a)))
       g.cause="page_suspendue";
+    if(pauses.some(r=>Date.parse(r.started_at)<=b&&(!r.ended_at||Date.parse(r.ended_at)>=a)))
+      g.cause="pause_marcheur";
     if(reloads.some(e=>Date.parse(e.note)>=a&&Date.parse(e.note)<b&&Date.parse(e.timestamp)<=b)){g.cause="page_rechargee";delete g.ended_at_estimated;g.ended_at=g.estimated_until||g.ended_at;delete g.estimated_until;}
   });
   reloads.forEach(e=>{
@@ -961,7 +974,8 @@ function startSession(){
     device_class:"ios",started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:null,compass_enabled:orientOn,
     mission_note:$("#missionNote").value.trim()||null,closing_note:null,circuit_ref:circuit?circuit.id:null,
-    conventional_ref:null,samples:[],events:[],stars:[],trace_gaps:[],trace_suspensions:[]};
+    conventional_ref:null,samples:[],events:[],stars:[],trace_gaps:[],trace_suspensions:[],photos:[],pauses:[]};
+  photoMem.clear();oublierPhotosPartagees();
   setTraceState("attente_position");
   pushEvent("start","Départ marcheur");
   if(circuitRequest)pushEvent(circuit?"circuit_loaded":"circuit_missing",circuit?circuit.id:circuitRequest);
@@ -972,7 +986,7 @@ function startSession(){
 }
 function wipeAll(fromWhere){
   if(!confirm("Tout effacer maintenant ? Rien ne sera conservé."))return;
-  clearInterval(tick);stopWatch();clearLocal();
+  clearInterval(tick);stopWatch();clearLocal();photoMem.clear();photoEffacer("").catch(()=>{});
   hideWalkMission();closeWalkMenu();distanceM=0;distanceAnchor=null;
   session=null;observations=[];moments=[];toldMoments=[];
   if(tracLine){map.removeLayer(tracLine);tracLine=null;}
@@ -1217,12 +1231,14 @@ function buildWalkExport(sess,obs){
       generated_at:new Date().toISOString(),
       note:"Marche libre d'habitant ; partage selon le choix de la session."},
     WalkSession:{...sess,samples:undefined,events:undefined,stars:undefined,
-      trace_gaps:undefined,trace_suspensions:undefined,
+      trace_gaps:undefined,trace_suspensions:undefined,photos:undefined,pauses:undefined,
+      photo_count:(sess.photos||[]).length,
       sample_count:sess.samples.length,star_count:(sess.stars||[]).length},
     TraceGap:sess.trace_gaps,
     StarMark:(sess.stars||[]).map(s=>({lat:s.lat,lon:s.lon,timestamp:s.timestamp,
       told_on_spot:!!s.note})),
     LocationSample:sess.samples,InteractionEvent:sess.events,
+    PhotoMark:sess.photos||[],PauseRange:sess.pauses||[],
     FieldObservation:obs};
 }
 // Mo décimal ; calcul sur les octets réellement transmis, gzip ou repli.
@@ -1310,6 +1326,109 @@ async function exportJSON(sess,obs,localSeulement){
      (le wireframe du 18/08 disait deja « en cas d'echec, rien n'est perdu »). */
   if(shared)clearLocal();
   return shared?"partage":"telechargement";
+}
+
+/* ═══ 0.4.8 — PHOTOS DANS LA PAGE ═══
+   Le bouton 📷 ouvre l'appareil photo par <input capture> : Chrome reste au premier plan, le GPS
+   continue (banc d'Isabelle, 07/11 : trou de 1 s, contre 15 à 17 s par l'appareil photo de l'iPhone).
+   iOS ne range pas ces photos dans Photos et leur retire la position : le Cockpit les date, les place,
+   les réduit (1600 px) et les garde (IndexedDB + mémoire). À la fin : « Enregistrer mes photos »
+   (feuille de partage : Photos, AirDrop, Fichiers). Elles ne partent jamais au dépôt. */
+const PHOTO_DB="jw_cockpit_photos", PHOTO_STORE="photo", PHOTO_SHARED_KEY="jw_photos_partagees";
+const photoMem=new Map();
+function photoDb(){return new Promise((res,rej)=>{const r=indexedDB.open(PHOTO_DB,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(PHOTO_STORE);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function photoPut(key,blob){const db=await photoDb();return new Promise((res,rej)=>{
+  const tx=db.transaction(PHOTO_STORE,"readwrite");tx.objectStore(PHOTO_STORE).put(blob,key);
+  tx.oncomplete=()=>{db.close();res();};tx.onerror=tx.onabort=()=>{db.close();rej(tx.error);};});}
+async function photoLire(prefix){const db=await photoDb();return new Promise((res,rej)=>{
+  const out=[],tx=db.transaction(PHOTO_STORE,"readonly"),cur=tx.objectStore(PHOTO_STORE).openCursor();
+  cur.onsuccess=()=>{const c=cur.result;if(!c)return;if(String(c.key).startsWith(prefix))out.push({key:String(c.key),blob:c.value});c.continue();};
+  tx.oncomplete=()=>{db.close();res(out);};tx.onerror=()=>{db.close();rej(tx.error);};});}
+async function photoEffacer(prefix){const db=await photoDb();return new Promise((res,rej)=>{
+  const tx=db.transaction(PHOTO_STORE,"readwrite"),cur=tx.objectStore(PHOTO_STORE).openCursor();
+  cur.onsuccess=()=>{const c=cur.result;if(!c)return;if(String(c.key).startsWith(prefix))c.delete();c.continue();};
+  tx.oncomplete=()=>{db.close();res();};tx.onerror=()=>{db.close();rej(tx.error);};});}
+/* Les photos d'une marche déjà enregistrée dans Photos (partage confirmé) sont effacées au départ suivant ;
+   les autres restent tant qu'on ne touche pas « Tout effacer ». */
+function oublierPhotosPartagees(){try{const l=JSON.parse(localStorage.getItem(PHOTO_SHARED_KEY)||"[]");
+  l.forEach(code=>photoEffacer(code+"/").catch(()=>{}));localStorage.removeItem(PHOTO_SHARED_KEY);}catch(e){}}
+async function reduirePhoto(file){
+  try{const bmp=await createImageBitmap(file,{imageOrientation:"from-image"});
+    const k=Math.min(1,1600/Math.max(bmp.width,bmp.height)),c=document.createElement("canvas");
+    c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
+    c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);if(bmp.close)bmp.close();
+    const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",0.85));
+    if(blob)return{blob,w:c.width,h:c.height};
+  }catch(e){}
+  return{blob:file,w:null,h:null};
+}
+let photoToastTimer=null;
+function photoToast(text,err){const t=$("#photoToast");t.textContent=text;t.classList.toggle("err",!!err);
+  t.style.display="block";clearTimeout(photoToastTimer);photoToastTimer=setTimeout(()=>{t.style.display="none";},err?8000:3500);}
+/* position au moment de la prise de vue : l'échantillon le plus proche de l'heure du fichier */
+function positionPhoto(ts){
+  const s=(session.samples||[]);let best=null,dt=Infinity;
+  for(let i=s.length-1;i>=0;i--){const d=Math.abs(Date.parse(s[i].timestamp)-ts);
+    if(d<dt){dt=d;best=s[i];}else if(Date.parse(s[i].timestamp)<ts-60000)break;}
+  if(best&&dt<=30000)return{lat:best.latitude,lon:best.longitude,acc:best.horizontal_accuracy_m,ecart_s:Math.round(dt/1000)};
+  if(lastPos)return{lat:lastPos.coords.latitude,lon:lastPos.coords.longitude,acc:lastPos.coords.accuracy,ecart_s:null};
+  return null;
+}
+async function photoPrise(file){
+  if(!session||!file)return;
+  const now=Date.now(),lm=file.lastModified&&Math.abs(file.lastModified-now)<10*60000?file.lastModified:now;
+  const n=(session.photos||(session.photos=[])).length+1,id="P"+String(n).padStart(2,"0");
+  const nom=session.session_id+"_"+id+".jpg",cle=session.session_id+"/"+id,pos=positionPhoto(lm);
+  const r=await reduirePhoto(file);
+  photoMem.set(cle,r.blob);
+  let garde=true;try{await photoPut(cle,r.blob);}catch(e){garde=false;}
+  session.photos.push({photo_id:id,file:nom,timestamp:new Date(lm).toISOString(),
+    lat:pos?pos.lat:null,lon:pos?pos.lon:null,accuracy_m:pos?pos.acc:null,position_ecart_s:pos?pos.ecart_s:null,
+    width:r.w,height:r.h,bytes:r.blob.size,stored:garde?"indexeddb":"memoire"});
+  pushEvent("photo","📷 "+id);
+  if(pos&&map)L.circleMarker([pos.lat,pos.lon],{radius:6,color:"#14181D",weight:2,fillColor:"#7FB3FF",fillOpacity:.9}).addTo(map);
+  saveLocal(true);
+  photoToast(garde?"📷 Photo "+n+" gardée — continue ta marche":"⚠ Photo "+n+" gardée seulement jusqu'à la fin de la marche : ne ferme pas la page",!garde);
+}
+async function photosDeLaMarche(){
+  const code=session.session_id,liste=(session.photos||[]);let stock=[];
+  try{stock=await photoLire(code+"/");}catch(e){}
+  const parCle=new Map(stock.map(x=>[x.key,x.blob]));
+  return liste.map(p=>{const cle=code+"/"+p.photo_id,b=photoMem.get(cle)||parCle.get(cle);
+    return b?new File([b],p.file,{type:"image/jpeg",lastModified:Date.parse(p.timestamp)}):null;}).filter(Boolean);
+}
+/* iOS n'ouvre la feuille de partage qu'en réponse directe à un toucher : les fichiers sont prêts
+   AVANT le toucher, et navigator.share est appelé sans attente dans le gestionnaire. */
+let photosPretes=[];
+async function montrerBoutonPhotos(){
+  const b=$("#btnPhotos"),n=session&&session.photos?session.photos.length:0;
+  b.style.display=n?"block":"none";if(!n)return;
+  b.disabled=true;b.textContent="📷 Préparation des photos…";
+  try{photosPretes=await photosDeLaMarche();}catch(e){photosPretes=[];}
+  b.disabled=false;
+  b.textContent=photosPretes.length>1?"📷 Enregistrer mes "+photosPretes.length+" photos":"📷 Enregistrer ma photo";
+  if(!photosPretes.length){b.style.display="none";const t=$("#photosTxt");t.style.display="block";t.textContent="Aucune photo retrouvée sur ce téléphone.";}
+}
+async function enregistrerPhotos(){
+  const b=$("#btnPhotos"),t=$("#photosTxt");if(!session)return;
+  const files=photosPretes;
+  t.style.display="block";
+  if(!files.length){t.textContent="Aucune photo retrouvée sur ce téléphone.";return;}
+  try{
+    if(!(navigator.canShare&&navigator.canShare({files})))throw new Error("partage indisponible");
+    b.disabled=true;
+    await navigator.share({files,title:"Mes photos — "+session.session_id});
+    b.textContent="Photos enregistrées ✓";
+    t.textContent="Choisis « Enregistrer "+files.length+" images » pour les ranger dans Photos, ou AirDrop pour les envoyer. Tu peux recommencer tant que tu restes sur cette page.";
+    b.disabled=false;
+    try{const l=JSON.parse(localStorage.getItem(PHOTO_SHARED_KEY)||"[]");if(!l.includes(session.session_id))l.push(session.session_id);
+      localStorage.setItem(PHOTO_SHARED_KEY,JSON.stringify(l));}catch(e){}
+  }catch(e){
+    b.disabled=false;
+    t.textContent=e&&e.name==="AbortError"?"Partage annulé : tes photos restent gardées ici. Touche le bouton pour réessayer.":
+      "Le partage des photos n'a pas marché ("+(e&&e.message||e)+"). Elles restent gardées ici : réessaie, ou dis-le à l'équipe.";
+  }
 }
 
 /* ═══ DÉMARRAGE ═══ */
@@ -1646,16 +1765,29 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#closingNote").addEventListener("input",function(){
     $("#fConsent").style.display=this.value.trim()?"block":"none";});
   window.getClosingConsent=()=>fConsentVal;
+  $("#btnPhoto").onclick=()=>{
+    if(mode!=="walk"||!session)return;
+    closeSheet();closeWalkMenu();hideWalkMission();
+    const inp=$("#photoInput");inp.value="";inp.click();
+  };
+  $("#photoInput").addEventListener("change",async function(){
+    const f=this.files&&this.files[0];
+    if(!f){pushEvent("photo_annulee",null);return;}
+    try{await photoPrise(f);}catch(e){photoToast("⚠ La photo n'a pas pu être gardée ("+(e&&e.message||e)+")",true);}
+  });
+  $("#btnPhotos").onclick=()=>enregistrerPhotos();
   $("#btnPause").onclick=()=>{
     if(!confirm("Mettre la marche en pause ? Le GPS s'arrêtera jusqu'à Reprendre."))return;
     closeSheet();
     distanceAnchor=null;closeWalkMenu();
     elapsedMs=walkedMs();runSince=null;pauseSince=Date.now();mode="paused";
     resetArrivalHint();offSinceCircuit=null;
+    (session.pauses||(session.pauses=[])).push({started_at:new Date(pauseSince).toISOString(),ended_at:null});
     stopWatch();releaseWakeLock();pushEvent("pause",null);
     $("#pauseFor").textContent="en pause depuis 0 min";show("scPause");
   };
   $("#btnResume").onclick=()=>{
+    {const pr=(session.pauses||[]).filter(r=>!r.ended_at).pop();if(pr)pr.ended_at=new Date().toISOString();}
     pushEvent("resume",Math.round((Date.now()-pauseSince)/60000)+" min");
     distanceAnchor=null;pauseSince=null;runSince=Date.now();mode="walk";
     show("scWalk");moveMapTo("mapHost");startWatch();acquireWakeLock();
@@ -1690,7 +1822,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     mode="sending";show("scDone");$("#doneTxt").textContent="Envoi en cours… Ta marche reste gardée ici.";
     try{
       const issue=await exportJSON(session,observations,localSeulement);
-      mode="done";button.textContent=issue==="depot"?"Reçu ✓":"Marche préparée";
+      mode="done";button.textContent=issue==="depot"?"Reçu ✓":"Marche préparée";montrerBoutonPhotos();
       $("#doneTxt").textContent=(
         issue==="depot"?"Bien reçue, merci ✓ Ta marche est arrivée en lieu sûr. Tu peux fermer. ":
         issue==="partage"?"Ta marche est prête ✓ Envoie-la depuis la feuille de partage. ":
@@ -1722,7 +1854,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     const code=session.session_id;
     mode="done";show("scDone");
     $("#doneTxt").textContent="Un instant — préparation de ta marche…";
-    const issue=await exportJSONLocal(session,observations);
+    const issue=await exportJSONLocal(session,observations);montrerBoutonPhotos();
     $("#doneTxt").textContent=(issue==="partage"?
       "Marche gardée pour toi ✓ Range-la où tu veux depuis la feuille de partage — rien n'est transmis. ":
       "Marche gardée pour toi ✓ Le fichier est dans Téléchargements — rien n'est transmis. ")+
