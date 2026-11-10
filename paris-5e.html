@@ -104,7 +104,7 @@
   .row button{flex:1;margin-top:0}
   button.mini{min-height:58px;font-size:19px}
 
-  button{width:100%;min-height:66px;border:0;border-radius:14px;font:700 22px/1 inherit;color:#FFFFFF;background:var(--acc);cursor:pointer;padding:0 16px}
+  button{width:100%;min-height:66px;border:0;border-radius:14px;font-family:inherit;font-weight:700;font-size:22px;line-height:1.15;color:#FFFFFF;background:var(--acc);cursor:pointer;padding:0 16px}
   button.ghost{background:#FFFFFF;color:var(--acc);border:3px solid var(--acc);min-height:60px;font-size:20px}
   button.stop{background:#FFFFFF;color:var(--danger);border:3px solid var(--danger)}
   button.warn{background:var(--warn);color:#FFFFFF}
@@ -159,18 +159,18 @@
 
 <!-- ═══ 1. CATALOGUE ═══ -->
 <section id="scCat" class="screen on">
-  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.2</span></header>
+  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.3</span></header>
   <div class="scroll">
     <p class="lead">Parcours à pied, commentés, à ton rythme. Repère-les depuis ton hôtel et planifie ta journée.</p>
     <div id="catList"></div>
     <p class="note">Parcours homologué : marché par une ambassadrice Journey Walker, arrêt par arrêt. Textes des arrêts : Wikipédia, licence CC BY-SA 4.0.</p>
-    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.2 · 10 novembre 2026 · 7 circuits homologués à Paris</p>
+    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.3 · 10 novembre 2026 · 7 circuits homologués à Paris</p>
   </div>
 </section>
 
 <!-- ═══ 2. FICHE DU PARCOURS ═══ -->
 <section id="scPlan" class="screen">
-  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.2</span></header>
+  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.3</span></header>
   <div class="maprow"><div id="mapPlan"></div></div>
   <div class="panel">
     <p class="lead" id="planLead">—</p>
@@ -207,6 +207,7 @@
     <p class="eyebrow">Itinéraire jusqu'au départ</p>
     <div class="navRow"><button id="btnNavPlans" class="ghost">Plans</button><button id="btnNavGoogle" class="ghost">Google Maps</button></div>
     <button id="btnGo">Go — je démarre</button>
+    <button id="btnGoWalk" class="ghost" style="display:none">Guide-moi à pied avec JW</button>
   </div>
 </section>
 
@@ -245,7 +246,7 @@
 
 <!-- ═══ 7. FIN ═══ -->
 <section id="scEnd" class="screen">
-  <header><h1>C'est fini — merci</h1><span class="chip">v0.6.2 clair</span></header>
+  <header><h1>C'est fini — merci</h1><span class="chip">v0.6.3 clair</span></header>
   <div class="scroll">
     <p class="lead" id="endSummary">—</p>
     <fieldset><legend>Quel arrêt t'a le plus plu ?</legend><div class="opts" id="favOpts"></div></fieldset>
@@ -258,7 +259,8 @@
         <label class="opt" data-v="non"><span>Non</span></label>
       </div></fieldset>
   </div>
-  <div class="panel"><button id="btnExport">Enregistrer les données de la marche</button></div>
+  <div class="panel"><button id="btnExport">Terminer</button>
+    <button id="btnShare" class="ghost" style="margin-top:10px">Envoyer mes réponses à l'équipe</button></div>
 </section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -353,11 +355,15 @@ function initMaps(){
   planMap=L.map("mapPlan",{zoomControl:false});
   baseLayer().addTo(planMap); drawRoute(planMap); drawLandmarks(planMap);
   planMap.fitBounds(L.polyline(ROUTE.line).getBounds(),{padding:[26,26]});
+  // 0.6.3 — quand la carte cachée prend enfin sa taille, la recadrer sur tout le parcours
+  planMap.on("resize",e=>{ if(!e.oldSize.x||!e.oldSize.y) planMap.fitBounds(L.polyline(ROUTE.line).getBounds(),{padding:[26,26]}); });
   map=L.map("map",{zoomControl:false});
   baseLayer().addTo(map); drawRoute(map); drawLandmarks(map);
   map.setView([ROUTE.stops[0].lat,ROUTE.stops[0].lon],17);
   return true;
 }
+/* 0.6.3 — la carte de présentation était cadrée pendant qu'elle était cachée (taille nulle) : zoom sur un coin */
+function cadrerPlan(){ planMap.invalidateSize(); planMap.fitBounds(L.polyline(ROUTE.line).getBounds(),{padding:[26,26]}); }
 const moveMapTo=id=>{ document.getElementById(id).appendChild(document.getElementById("map"));
   setTimeout(()=>map.invalidateSize(),110); };
 
@@ -417,7 +423,8 @@ function onPos(pos){
   if(lastPos){
     const dt=(pos.timestamp-lastPos.timestamp)/1000;
     const dd=hav(lastPos.coords.latitude,lastPos.coords.longitude,c.latitude,c.longitude);
-    if(dt>1.5&&dt<30&&dd<60){ speeds.push(dd/dt); if(speeds.length>40) speeds.shift(); }
+    // 0.6.3 — à l'arrêt (chez soi), le GPS « bouge » lentement : ces vitesses-là ne disent rien de l'allure
+    if(dt>1.5&&dt<30&&dd<60&&dd/dt>=0.5&&dd/dt<=2.5){ speeds.push(dd/dt); if(speeds.length>40) speeds.shift(); }
   }
   lastPos=pos;
   $("#preAcc").textContent="GPS ±"+Math.round(c.accuracy)+" m";
@@ -455,6 +462,9 @@ function onPos(pos){
 
 /* ═══ PRÉ-MARCHE ═══ */
 const PRE_HOLD_MS=30000;let preTouchAt=0;
+/* 0.6.3 — au-delà de 800 m, JW ne guide pas jusqu'au départ : Google Maps ou Plans le font mieux (métro, bus).
+   JW reprend la main au départ (« Tu y es ✓ »). */
+const FAR_TRANSIT_M=800;let farTransit=false;
 function cadrerPre(c){
   const b=L.latLngBounds(ROUTE.line).extend([START.lat,START.lon]);
   if(c)b.extend([c.latitude,c.longitude]);
@@ -464,10 +474,11 @@ function cadrerPre(c){
    Si l'app s'ouvre, la page perd le premier plan : on n'ouvre pas la version web en plus. */
 function itinerairePlans(){window.open("https://maps.apple.com/?daddr="+START.lat+","+START.lon+"&dirflg=w","_blank");}
 function itineraireGoogle(){
-  const web="https://www.google.com/maps/dir/?api=1&destination="+START.lat+","+START.lon+"&travelmode=walking";
+  const mode=farTransit?"transit":"walking";
+  const web="https://www.google.com/maps/dir/?api=1&destination="+START.lat+","+START.lon+"&travelmode="+mode;
   let parti=false;const marque=()=>{parti=true;};
   window.addEventListener("blur",marque);document.addEventListener("visibilitychange",marque);
-  location.href="comgooglemaps://?daddr="+START.lat+","+START.lon+"&directionsmode=walking";
+  location.href="comgooglemaps://?daddr="+START.lat+","+START.lon+"&directionsmode="+mode;
   setTimeout(()=>{window.removeEventListener("blur",marque);document.removeEventListener("visibilitychange",marque);
     if(!parti&&!document.hidden)window.open(web,"_blank");},1800);
 }
@@ -479,14 +490,19 @@ function renderPre(c){
   $("#preEta").textContent=here?"—":fmtT(dispPre/pace());
   const far=d>NEAR_START_M, h=$("#preHint");
   h.style.display=far?"block":"none";
-  if(far){ h.className="warnbox"; h.innerHTML="Tu es à <b>"+fmtD(dispPre)+"</b> du départ (pastille verte « D » sur la carte). "+
+  farTransit=d>FAR_TRANSIT_M;
+  if(far){ h.className="warnbox"; h.innerHTML=farTransit?
+    "Tu es à <b>"+fmtD(dispPre)+"</b> du départ (pastille verte « D » sur la carte). Le plus simple : "+
+    "touche <b>Me rendre au départ</b> — Google Maps te propose le métro, le bus ou la marche. Une fois au départ, reviens ici.":
+    "Tu es à <b>"+fmtD(dispPre)+"</b> du départ (pastille verte « D » sur la carte). "+
     "Tu peux démarrer quand même — l'app te guide d'abord jusqu'au premier arrêt, sans compter ça comme un écart."; }
   const cb=$("#compBox");
   if(here && cb.style.display!=="block"){
     h.style.display="block"; h.className="okbox";
     h.textContent="Tu es au point de départ ✓ — appuie sur Go quand tu veux.";
   }
-  $("#btnGo").textContent=far?"Go — guide-moi jusqu'au départ":"Go — je démarre";
+  $("#btnGo").textContent=farTransit?"Me rendre au départ — métro, bus ou à pied":far?"Go — guide-moi jusqu'au départ":"Go — je démarre";
+  $("#btnGoWalk").style.display=farTransit?"block":"none";
 }
 
 /* ═══ MARCHE ═══ */
@@ -630,7 +646,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.6.2-clair80",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.6.3-clair80",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Paris · 5ᵉ",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -709,7 +725,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   offerRecovery();
 
   $("#btnStops").onclick=()=>show("scStops");
-  $("#btnBackPlan").onclick=()=>show("scPlan");
+  $("#btnBackPlan").onclick=()=>{ show("scPlan"); setTimeout(cadrerPlan,110); };
   $("#btnPre").onclick=()=>{ mode="pre"; show("scPre"); startWatch();
     setTimeout(()=>{map.invalidateSize();cadrerPre(lastPos&&lastPos.coords);},130); };
   $("#btnComp").onclick=enableCompass;
@@ -717,11 +733,13 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#btnNavGoogle").onclick=itineraireGoogle;
   ["touchstart","pointerdown","wheel"].forEach(ev=>document.getElementById("map").addEventListener(ev,()=>{preTouchAt=Date.now();},{passive:true}));
   $("#btnFit").onclick=()=>{preTouchAt=0;cadrerPre(lastPos&&lastPos.coords);};
-  $("#btnGo").onclick=()=>{
+  $("#btnGo").onclick=()=>{ if(farTransit) itineraireGoogle(); else demarrer(); };
+  $("#btnGoWalk").onclick=()=>demarrer();
+  function demarrer(){
     mode="walk"; targetIdx=0; reached=[]; skipped=[]; dispDist=null;
     startSession(); show("scWalk"); moveMapTo("mapHost"); renderDots();
     if(lastPos){ renderWalk(lastPos.coords); renderOff(lastPos.coords); }
-  };
+  }
   $("#btnPause").onclick=pauseWalk;
   $("#btnResume").onclick=resumeWalk;
   $("#btnSkip").onclick=()=>{
@@ -745,7 +763,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     o.classList.add("sel");
   });
 
-  $("#btnExport").onclick=()=>{
+  function reponses(){
     session.usage_feedback={
       favorite_poi_id:$("#favOpts .opt.sel")?.dataset.v||null,
       confusion_note:$("#confusion").value.trim()||null,
@@ -757,12 +775,27 @@ document.addEventListener("DOMContentLoaded",()=>{
         sample_count:session.samples.length},
       LocationSample:session.samples,InteractionEvent:session.events,
       UsageFeedback:session.usage_feedback};
+    return out;
+  }
+  /* « Terminer » : les réponses restent sur ce téléphone, rien ne se télécharge (le fichier JSON est pour l'équipe). */
+  $("#btnExport").onclick=()=>{
+    const out=reponses();
+    try{localStorage.setItem("jw_clair_derniere_marche",JSON.stringify(out));}catch(e){}
+    clearSaved();
+    $("#btnExport").textContent="Merci ✓ — à bientôt";$("#btnExport").disabled=true;
+  };
+  /* « Envoyer mes réponses à l'équipe » : feuille de partage (Mail, WhatsApp, AirDrop), sinon téléchargement. */
+  $("#btnShare").onclick=async()=>{
+    const out=reponses();
     const a=document.createElement("a");
     a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:"application/json"}));
     a.download="JW_APP_VISITEUR_PAR-JW-5E-A_"+new Date().toISOString().replace(/[:.]/g,"-")+".json";
-    a.click();
-    clearSaved();                       // le filet ne sert plus, la marche est sur le telephone
-    $("#btnExport").textContent="Enregistré ✓";
+    const f=new File([JSON.stringify(out,null,2)],a.download,{type:"application/json"});
+    try{
+      if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:"Journey Walker — ma promenade"});}
+      else a.click();
+      $("#btnShare").textContent="Envoyé ✓";
+    }catch(e){ if(!(e&&e.name==="AbortError")) a.click(); }
   };
 });
 </script>
