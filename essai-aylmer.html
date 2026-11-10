@@ -159,18 +159,18 @@
 
 <!-- ═══ 1. CATALOGUE ═══ -->
 <section id="scCat" class="screen on">
-  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.3</span></header>
+  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.4</span></header>
   <div class="scroll">
     <p class="lead">Parcours à pied, commentés, à ton rythme. Repère-les depuis ton hôtel et planifie ta journée.</p>
     <div id="catList"></div>
     <p class="note">Parcours d&#x27;essai, tracé depuis la marche d&#x27;un habitant.</p>
-    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.3 · 10 novembre 2026 · 9 circuits homologués à Paris</p>
+    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.4 · 10 novembre 2026 · 9 circuits homologués à Paris</p>
   </div>
 </section>
 
 <!-- ═══ 2. FICHE DU PARCOURS ═══ -->
 <section id="scPlan" class="screen">
-  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.3</span></header>
+  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.4</span></header>
   <div class="maprow"><div id="mapPlan"></div></div>
   <div class="panel">
     <p class="lead" id="planLead">—</p>
@@ -246,7 +246,7 @@
 
 <!-- ═══ 7. FIN ═══ -->
 <section id="scEnd" class="screen">
-  <header><h1>C'est fini — merci</h1><span class="chip">v0.6.3 clair</span></header>
+  <header><h1>C'est fini — merci</h1><span class="chip">v0.6.4 clair</span></header>
   <div class="scroll">
     <p class="lead" id="endSummary">—</p>
     <fieldset><legend>Quel arrêt t'a le plus plu ?</legend><div class="opts" id="favOpts"></div></fieldset>
@@ -259,8 +259,11 @@
         <label class="opt" data-v="non"><span>Non</span></label>
       </div></fieldset>
   </div>
-  <div class="panel"><button id="btnExport">Terminer</button>
-    <button id="btnShare" class="ghost" style="margin-top:10px">Envoyer mes réponses à l'équipe</button></div>
+  <div class="panel">
+    <p class="note" id="envoiTxt">Tes réponses et ton chemin partent à l'équipe Journey Walker. On enregistre le chemin, pas la personne.</p>
+    <button id="btnSend">Envoyer à l'équipe JW</button>
+    <button id="btnShare" class="ghost" style="margin-top:10px;display:none">Envoyer autrement</button>
+    <button id="btnExport" class="ghost" style="margin-top:10px">Terminer sans envoyer</button></div>
 </section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -646,7 +649,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.6.3-clair80",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.6.4-clair80",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Gatineau · Aylmer",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -777,14 +780,37 @@ document.addEventListener("DOMContentLoaded",()=>{
       UsageFeedback:session.usage_feedback};
     return out;
   }
-  /* « Terminer » : les réponses restent sur ce téléphone, rien ne se télécharge (le fichier JSON est pour l'équipe). */
+  /* « Terminer sans envoyer » : les réponses restent sur ce téléphone, rien ne se télécharge. */
   $("#btnExport").onclick=()=>{
     const out=reponses();
     try{localStorage.setItem("jw_clair_derniere_marche",JSON.stringify(out));}catch(e){}
     clearSaved();
-    $("#btnExport").textContent="Merci ✓ — à bientôt";$("#btnExport").disabled=true;
+    $("#btnExport").textContent="Merci ✓ — à bientôt";$("#btnExport").disabled=true;$("#btnSend").disabled=true;
   };
-  /* « Envoyer mes réponses à l'équipe » : feuille de partage (Mail, WhatsApp, AirDrop), sinon téléchargement. */
+  /* 0.6.4 — « Envoyer à l'équipe JW » : directement au dépôt JW, la boîte du Cockpit marcheur (José, 10/11 :
+     pas de choix à faire). Reçu = le dépôt renvoie le code de la session. La feuille de partage reste en secours. */
+  const DEPOT_URL="https://lesobjetsdemamaison.ca/jw/depot?t=vGQkcsq6NssypkCIGY99SVz8";
+  $("#btnSend").onclick=async()=>{
+    const b=$("#btnSend"),txt=$("#envoiTxt");if(b.disabled)return;
+    const out=reponses();b.disabled=true;b.textContent="Envoi en cours…";
+    const ctl=new AbortController(),minuteur=setTimeout(()=>ctl.abort(),30000);
+    try{
+      const r=await fetch(DEPOT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(out),signal:ctl.signal});
+      const recu=r.ok?await r.json():null;
+      if(!recu||!recu.ok||recu.recu!==out.WalkSession.session_id)throw new Error("statut "+r.status);
+      clearSaved();
+      try{localStorage.setItem("jw_clair_derniere_marche",JSON.stringify(out));}catch(e){}
+      b.textContent="Reçu ✓ — merci";txt.textContent="L'équipe Journey Walker a bien reçu tes réponses. Tu peux fermer la page.";
+      $("#btnExport").style.display="none";$("#btnShare").style.display="none";
+    }catch(e){
+      b.disabled=false;b.textContent="Réessayer l'envoi";
+      txt.textContent=e&&(e.name==="AbortError"||e.name==="TypeError")?
+        "Pas de réseau pour le moment. Réessaie dans un instant, ou touche « Envoyer autrement ».":
+        "L'envoi n'a pas abouti. Réessaie dans un instant, ou touche « Envoyer autrement ».";
+      $("#btnShare").style.display="block";
+    }finally{clearTimeout(minuteur);}
+  };
+  /* « Envoyer autrement » (secours) : feuille de partage (Mail, WhatsApp, AirDrop), sinon téléchargement. */
   $("#btnShare").onclick=async()=>{
     const out=reponses();
     const a=document.createElement("a");
