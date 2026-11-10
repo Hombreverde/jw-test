@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JW — Mes photos gardées</title>
+<link rel="apple-touch-icon" href="jw-cockpit-icon-180.png">
+<style>
+  :root{--acc:#7D3A5E;--ink:#14181D;--dim:#4A5059;--bg:#FFFBF5;--line:#E6DCD3;--ok:#1E6B3A;--warn:#9A3412}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:0 max(16px,env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+  header{background:var(--acc);color:#fff;margin:0 calc(-1 * max(16px,env(safe-area-inset-left)));padding:calc(14px + env(safe-area-inset-top)) 16px 14px}
+  header h1{margin:0;font-size:22px}
+  header p{margin:4px 0 0;font-size:14px;opacity:.9}
+  .chip{display:inline-block;border:1px solid rgba(255,255,255,.6);border-radius:999px;padding:1px 8px;font-size:12px;margin-left:6px;vertical-align:middle}
+  #etat{margin:16px 0}
+  .walk{border:2px solid var(--line);border-radius:14px;background:#fff;padding:14px;margin:16px 0}
+  .walk h2{margin:0 0 2px;font-size:19px}
+  .walk .meta{color:var(--dim);font-size:15px;margin:0 0 10px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;margin:10px 0}
+  .grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;background:var(--line)}
+  button{width:100%;min-height:52px;border:0;border-radius:12px;background:var(--acc);color:#fff;font:600 18px/1.2 inherit;font-family:inherit}
+  button:disabled{opacity:.55}
+  button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  .msg{font-size:15px;margin:8px 0 0}
+  .msg.ok{color:var(--ok)} .msg.err{color:var(--warn)}
+  .note{color:var(--dim);font-size:14px;margin-top:24px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mes photos gardées <span class="chip">v0.1</span></h1>
+  <p>Les photos 📷 prises dans le Cockpit marcheur, encore gardées sur ce téléphone.</p>
+</header>
+
+<div id="etat">Recherche des photos…</div>
+<div id="marches"></div>
+
+<p class="note">Cette page lit seulement ce que le Cockpit a gardé dans Chrome sur ce téléphone. Elle n'envoie rien et n'efface rien.
+Ouvre-la dans le même navigateur que le Cockpit (Google Chrome).</p>
+
+<script>
+/* v0.1 (10/11/2026) — lit la base IndexedDB « jw_cockpit_photos » du Cockpit 0.4.8 (clés « CODE/Pnn »)
+   et rend chaque marche par la feuille de partage (Photos, AirDrop, Fichiers). Lecture seule. */
+const PHOTO_DB="jw_cockpit_photos",PHOTO_STORE="photo";
+const $=s=>document.querySelector(s);
+function lireTout(){return new Promise((res,rej)=>{
+  const r=indexedDB.open(PHOTO_DB,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(PHOTO_STORE);
+  r.onerror=()=>rej(r.error);
+  r.onsuccess=()=>{const db=r.result,out=[];
+    let tx;try{tx=db.transaction(PHOTO_STORE,"readonly");}catch(e){db.close();res(out);return;}
+    const cur=tx.objectStore(PHOTO_STORE).openCursor();
+    cur.onsuccess=()=>{const c=cur.result;if(!c)return;out.push({key:String(c.key),blob:c.value});c.continue();};
+    tx.oncomplete=()=>{db.close();res(out);};tx.onerror=()=>{db.close();rej(tx.error);};};
+});}
+function mo(n){return (n/1048576).toLocaleString("fr-FR",{maximumFractionDigits:1})+" Mo";}
+/* iOS n'ouvre la feuille de partage qu'en réponse directe à un toucher : les fichiers sont prêts avant. */
+function carte(code,items){
+  const files=items.map(x=>new File([x.blob],code+"_"+x.key.split("/")[1]+".jpg",{type:"image/jpeg"}));
+  const total=items.reduce((s,x)=>s+(x.blob.size||0),0);
+  const box=document.createElement("section");box.className="walk";
+  const h=document.createElement("h2");h.textContent=code;box.appendChild(h);
+  const m=document.createElement("p");m.className="meta";
+  m.textContent=items.length+(items.length>1?" photos":" photo")+" · "+mo(total);box.appendChild(m);
+  const g=document.createElement("div");g.className="grid";
+  items.slice(0,12).forEach(x=>{const i=document.createElement("img");i.alt=x.key;i.loading="lazy";i.src=URL.createObjectURL(x.blob);g.appendChild(i);});
+  box.appendChild(g);
+  if(items.length>12){const p=document.createElement("p");p.className="meta";p.textContent="… et "+(items.length-12)+" autres.";box.appendChild(p);}
+  const b=document.createElement("button");
+  b.textContent=items.length>1?"📷 Enregistrer les "+items.length+" photos":"📷 Enregistrer la photo";
+  const t=document.createElement("p");t.className="msg";
+  b.onclick=async()=>{
+    t.className="msg";t.textContent="";
+    try{
+      if(!(navigator.canShare&&navigator.canShare({files})))throw new Error("partage indisponible sur ce navigateur");
+      b.disabled=true;
+      await navigator.share({files,title:"Mes photos — "+code});
+      t.className="msg ok";
+      t.textContent="Choisis « Enregistrer "+files.length+" images » pour les ranger dans Photos, ou AirDrop pour les envoyer. Elles restent aussi gardées ici.";
+    }catch(e){
+      t.className="msg err";
+      t.textContent=e&&e.name==="AbortError"?"Partage annulé : les photos restent gardées ici. Touche le bouton pour réessayer.":
+        "Le partage n'a pas marché ("+(e&&e.message||e)+"). Les photos restent gardées ici.";
+    }finally{b.disabled=false;}
+  };
+  box.appendChild(b);box.appendChild(t);
+  return box;
+}
+(async()=>{
+  let tout=[];
+  try{tout=await lireTout();}
+  catch(e){$("#etat").textContent="Impossible de lire les photos gardées ("+(e&&e.message||e)+").";return;}
+  const parMarche=new Map();
+  tout.filter(x=>x.blob&&x.key.includes("/")).forEach(x=>{const code=x.key.split("/")[0];
+    if(!parMarche.has(code))parMarche.set(code,[]);parMarche.get(code).push(x);});
+  if(!parMarche.size){
+    $("#etat").textContent="Aucune photo gardée sur ce téléphone. Elles ont été effacées (« Tout effacer »), ou ce n'est pas le navigateur du Cockpit.";
+    return;
+  }
+  $("#etat").textContent=parMarche.size>1?parMarche.size+" marches ont des photos gardées sur ce téléphone.":"Une marche a des photos gardées sur ce téléphone.";
+  [...parMarche.keys()].sort().forEach(code=>{
+    const items=parMarche.get(code).sort((a,b)=>a.key.localeCompare(b.key,"fr",{numeric:true}));
+    $("#marches").appendChild(carte(code,items));
+  });
+})();
+</script>
+</body>
+</html>
