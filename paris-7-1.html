@@ -49,6 +49,13 @@
   .scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 0;flex:1}
   .panel{background:var(--card);border-top:2px solid var(--line);padding:14px 16px calc(env(safe-area-inset-bottom) + 14px)}
   .maprow{position:relative;flex:1;display:flex;min-height:170px}
+  /* 0.6.2 — « Tout voir » sur la carte de « Rejoindre le départ » ; deux itinéraires côte à côte */
+  #btnFit{position:absolute;top:10px;right:10px;z-index:500;width:auto;min-height:44px;margin:0;padding:6px 14px;background:#fff;color:#0B3D91;border:2px solid #0B3D91;border-radius:12px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  .navRow{display:flex;gap:8px}
+  /* la carte ne faisait que 170 px : le panneau prenait l'écran. Carte = la moitié haute, le panneau défile */
+  #scPre>.maprow{flex:0 0 48dvh}
+  #scPre>.panel{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .navRow button{flex:1;margin-top:0}
   #map,#mapPlan{flex:1;background:#E9EEF3}
   .leaflet-container{background:#E9EEF3;font:inherit}
   .leaflet-control-attribution{font-size:11px;background:rgba(255,255,255,.85);color:#33404C}
@@ -152,18 +159,18 @@
 
 <!-- ═══ 1. CATALOGUE ═══ -->
 <section id="scCat" class="screen on">
-  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.1</span></header>
+  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.2</span></header>
   <div class="scroll">
     <p class="lead">Parcours à pied, commentés, à ton rythme. Repère-les depuis ton hôtel et planifie ta journée.</p>
     <div id="catList"></div>
     <p class="note">Parcours homologué : marché par une ambassadrice Journey Walker, arrêt par arrêt. Textes des arrêts : Wikipédia, licence CC BY-SA 4.0.</p>
-    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.1 · 9 novembre 2026 · 7 circuits homologués à Paris</p>
+    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.2 · 10 novembre 2026 · 7 circuits homologués à Paris</p>
   </div>
 </section>
 
 <!-- ═══ 2. FICHE DU PARCOURS ═══ -->
 <section id="scPlan" class="screen">
-  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.1</span></header>
+  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.2</span></header>
   <div class="maprow"><div id="mapPlan"></div></div>
   <div class="panel">
     <p class="lead" id="planLead">—</p>
@@ -186,7 +193,7 @@
 <!-- ═══ 4. PRÉ-MARCHE ═══ -->
 <section id="scPre" class="screen">
   <header><h1>Rejoindre le départ</h1><span class="chip" id="preAcc">GPS…</span></header>
-  <div class="maprow"><div id="map"></div></div>
+  <div class="maprow"><div id="map"></div><button id="btnFit" type="button">⤢ Tout voir</button></div>
   <div class="panel">
     <p class="eyebrow">Point de départ</p>
     <h2 class="big" id="preName">—</h2>
@@ -197,7 +204,8 @@
     <div id="preHint" class="warnbox" style="display:none"></div>
     <div id="compBox" class="okbox" style="display:none"></div>
     <button id="btnComp" class="ghost">Activer la boussole</button>
-    <button id="btnNav" class="ghost">Ouvrir dans Plans / Google Maps</button>
+    <p class="eyebrow">Itinéraire jusqu'au départ</p>
+    <div class="navRow"><button id="btnNavPlans" class="ghost">Plans</button><button id="btnNavGoogle" class="ghost">Google Maps</button></div>
     <button id="btnGo">Go — je démarre</button>
   </div>
 </section>
@@ -237,7 +245,7 @@
 
 <!-- ═══ 7. FIN ═══ -->
 <section id="scEnd" class="screen">
-  <header><h1>C'est fini — merci</h1><span class="chip">v0.6.1 clair</span></header>
+  <header><h1>C'est fini — merci</h1><span class="chip">v0.6.2 clair</span></header>
   <div class="scroll">
     <p class="lead" id="endSummary">—</p>
     <fieldset><legend>Quel arrêt t'a le plus plu ?</legend><div class="opts" id="favOpts"></div></fieldset>
@@ -424,9 +432,10 @@ function onPos(pos){
     meHalo.setLatLng([c.latitude,c.longitude]).setRadius(c.accuracy);
   }
   if(mode==="pre"){
-    // montrer TOUJOURS le marcheur ET le départ sur le même écran — leçon du 09/08 :
-    // suivre seul un compteur de mètres fait tourner en rond
-    map.fitBounds([[c.latitude,c.longitude],[START.lat,START.lon]],{padding:[52,52],maxZoom:18,animate:false});
+    // montrer le marcheur ET le départ sur le même écran — leçon du 09/08 : suivre seul un compteur
+    // de mètres fait tourner en rond. 0.6.2 (José, 10/11) : avec tout le parcours, et jamais contre un
+    // geste du marcheur (le recadrage à chaque position défaisait son dézoom).
+    if(Date.now()-preTouchAt>PRE_HOLD_MS)cadrerPre(c);
   }else{
     map.panTo([c.latitude,c.longitude],{animate:true,duration:.6});
   }
@@ -445,6 +454,23 @@ function onPos(pos){
 }
 
 /* ═══ PRÉ-MARCHE ═══ */
+const PRE_HOLD_MS=30000;let preTouchAt=0;
+function cadrerPre(c){
+  const b=L.latLngBounds(ROUTE.line).extend([START.lat,START.lon]);
+  if(c)b.extend([c.latitude,c.longitude]);
+  map.fitBounds(b,{padding:[24,24],maxZoom:17,animate:false});
+}
+/* Itinéraires : Plans par maps.apple.com ; Google Maps par son app (comgooglemaps://), sinon sur le web.
+   Si l'app s'ouvre, la page perd le premier plan : on n'ouvre pas la version web en plus. */
+function itinerairePlans(){window.open("https://maps.apple.com/?daddr="+START.lat+","+START.lon+"&dirflg=w","_blank");}
+function itineraireGoogle(){
+  const web="https://www.google.com/maps/dir/?api=1&destination="+START.lat+","+START.lon+"&travelmode=walking";
+  let parti=false;const marque=()=>{parti=true;};
+  window.addEventListener("blur",marque);document.addEventListener("visibilitychange",marque);
+  location.href="comgooglemaps://?daddr="+START.lat+","+START.lon+"&directionsmode=walking";
+  setTimeout(()=>{window.removeEventListener("blur",marque);document.removeEventListener("visibilitychange",marque);
+    if(!parti&&!document.hidden)window.open(web,"_blank");},1800);
+}
 function renderPre(c){
   const d=hav(c.latitude,c.longitude,START.lat,START.lon);
   dispPre=smoothD(dispPre,d);
@@ -604,7 +630,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.6.1-clair80",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.6.2-clair80",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Paris · 1ᵉʳ–2ᵉ",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -684,10 +710,13 @@ document.addEventListener("DOMContentLoaded",()=>{
 
   $("#btnStops").onclick=()=>show("scStops");
   $("#btnBackPlan").onclick=()=>show("scPlan");
-  $("#btnPre").onclick=()=>{ mode="pre"; show("scPre"); startWatch(); setTimeout(()=>map.invalidateSize(),130); };
+  $("#btnPre").onclick=()=>{ mode="pre"; show("scPre"); startWatch();
+    setTimeout(()=>{map.invalidateSize();cadrerPre(lastPos&&lastPos.coords);},130); };
   $("#btnComp").onclick=enableCompass;
-  $("#btnNav").onclick=()=>{
-    window.open("https://maps.apple.com/?daddr="+START.lat+","+START.lon+"&dirflg=w","_blank"); };
+  $("#btnNavPlans").onclick=itinerairePlans;
+  $("#btnNavGoogle").onclick=itineraireGoogle;
+  ["touchstart","pointerdown","wheel"].forEach(ev=>document.getElementById("map").addEventListener(ev,()=>{preTouchAt=Date.now();},{passive:true}));
+  $("#btnFit").onclick=()=>{preTouchAt=0;cadrerPre(lastPos&&lastPos.coords);};
   $("#btnGo").onclick=()=>{
     mode="walk"; targetIdx=0; reached=[]; skipped=[]; dispDist=null;
     startSession(); show("scWalk"); moveMapTo("mapHost"); renderDots();
