@@ -1,0 +1,75 @@
+<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JW — banc photo 2 synthétique</title><style>body{font:18px system-ui;max-width:650px;margin:20px auto;padding:12px}button,a{display:block;padding:14px;margin:10px 0;background:#eee;border-radius:10px}img{max-width:100%}</style><h1>Banc photo 2</h1><p>Aucune donnée réelle. Même dessin, date 12 novembre 2026, 11 h 11 min 12 s UTC, position synthétique 48,85 / 2,35. Rien n’est envoyé par la page.</p><button id="make">Fabriquer les variantes</button><p id="status" role="status"></p><div id="out"></div><script>
+const APP_VERSION='jw-banc-photo-2';
+function exifAscii(s){const b=new Uint8Array(s.length+1);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i)&127;return b;}
+function exifRat(pairs){const b=new Uint8Array(pairs.length*8),v=new DataView(b.buffer);
+  pairs.forEach(([n,d],i)=>{v.setUint32(i*8,n);v.setUint32(i*8+4,d);});return b;}
+function exifLong(n){const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,n);return b;}
+/* un répertoire TIFF ; entrées {tag,type,count,data} ; les valeurs de plus de 4 octets vont à la suite */
+function exifIfd(entries,start){
+  entries.sort((a,b)=>a.tag-b.tag);
+  const head=2+entries.length*12+4;let size=head;
+  entries.forEach(e=>{if(e.data.length>4)size+=e.data.length+(e.data.length&1);});
+  const out=new Uint8Array(size),v=new DataView(out.buffer);let extra=head;
+  v.setUint16(0,entries.length);
+  entries.forEach((e,i)=>{const p=2+i*12;v.setUint16(p,e.tag);v.setUint16(p+2,e.type);v.setUint32(p+4,e.count);
+    if(e.data.length>4){v.setUint32(p+8,start+extra);out.set(e.data,extra);extra+=e.data.length+(e.data.length&1);}
+    else out.set(e.data,p+8);});
+  return out;
+}
+function exifDms(x){const a=Math.abs(x),d=Math.floor(a),m=Math.floor((a-d)*60),s=Math.round(((a-d)*60-m)*60*10000);
+  return exifRat([[d,1],[m,1],[s,10000]]);}
+async function exifJpeg(blob,ts,pos,desc){
+  const src=new Uint8Array(await blob.arrayBuffer());
+  if(src[0]!==0xFF||src[1]!==0xD8)return blob;
+  const t=new Date(ts),z=n=>String(n).padStart(2,"0");
+  const local=t.getFullYear()+":"+z(t.getMonth()+1)+":"+z(t.getDate())+" "+z(t.getHours())+":"+z(t.getMinutes())+":"+z(t.getSeconds());
+  const o=-t.getTimezoneOffset(),off=(o<0?"-":"+")+z(Math.floor(Math.abs(o)/60))+":"+z(Math.abs(o)%60);
+  const ok=pos&&isFinite(pos.lat)&&isFinite(pos.lon);
+  const ifd0=[{tag:0x010E,type:2,data:exifAscii(desc)},{tag:0x0112,type:3,data:new Uint8Array([0,1,0,0])},
+    {tag:0x0131,type:2,data:exifAscii(APP_VERSION)},{tag:0x0132,type:2,data:exifAscii(local)},
+    {tag:0x8769,type:4,data:exifLong(0)}];
+  if(ok)ifd0.push({tag:0x8825,type:4,data:exifLong(0)});
+  ifd0.forEach(e=>e.count=e.type===2?e.data.length:1);
+  const exif=[{tag:0x9000,type:7,count:4,data:exifAscii("0232").slice(0,4)},
+    {tag:0x9003,type:2,data:exifAscii(local)},{tag:0x9011,type:2,data:exifAscii(off)}];
+  exif.forEach(e=>{if(e.type===2)e.count=e.data.length;});
+  let gps=null;
+  if(ok){const u=t.toISOString();
+    gps=[{tag:0,type:1,count:4,data:new Uint8Array([2,3,0,0])},
+      {tag:1,type:2,count:2,data:exifAscii(pos.lat<0?"S":"N")},{tag:2,type:5,count:3,data:exifDms(pos.lat)},
+      {tag:3,type:2,count:2,data:exifAscii(pos.lon<0?"W":"E")},{tag:4,type:5,count:3,data:exifDms(pos.lon)},
+      {tag:7,type:5,count:3,data:exifRat([[+u.slice(11,13),1],[+u.slice(14,16),1],[+u.slice(17,19),1]])},
+      {tag:0x1D,type:2,count:11,data:exifAscii(u.slice(0,10).replace(/-/g,":"))}];
+    if(isFinite(pos.acc)&&pos.acc>0)gps.push({tag:0x1F,type:5,count:1,data:exifRat([[Math.round(pos.acc*100),100]])});}
+  /* trois passes : chaque répertoire connaît sa place avant d'être écrit */
+  let a=exifIfd(ifd0.map(e=>({...e})),8);
+  const exifAt=8+a.length;let b=exifIfd(exif.map(e=>({...e})),exifAt);
+  const gpsAt=exifAt+b.length;
+  ifd0.find(e=>e.tag===0x8769).data=exifLong(exifAt);
+  if(ok)ifd0.find(e=>e.tag===0x8825).data=exifLong(gpsAt);
+  a=exifIfd(ifd0,8);
+  const c=ok?exifIfd(gps,gpsAt):new Uint8Array(0);
+  const tiff=new Uint8Array(8+a.length+b.length+c.length),tv=new DataView(tiff.buffer);
+  tiff.set([0x4D,0x4D,0,42,0,0,0,8]);tiff.set(a,8);tiff.set(b,exifAt);tiff.set(c,gpsAt);
+  const seg=new Uint8Array(4+6+tiff.length),sv=new DataView(seg.buffer);
+  sv.setUint16(0,0xFFE1);sv.setUint16(2,2+6+tiff.length);seg.set([0x45,0x78,0x69,0x66,0,0],4);seg.set(tiff,10);
+  /* après le segment JFIF (APP0) s'il existe, comme le font les outils photo */
+  let at=2;if(src[2]===0xFF&&src[3]===0xE0)at=4+((src[4]<<8)|src[5]);
+  return new Blob([src.slice(0,at),seg,src.slice(at)],{type:"image/jpeg"});
+}
+
+function segments(bytes){const out=[];let p=2;while(p+4<=bytes.length&&bytes[p]===255){const m=bytes[p+1];if(m===218||m===217)break;const n=(bytes[p+2]<<8)|bytes[p+3];if(n<2||p+2+n>bytes.length)throw Error('segment invalide');out.push({m,start:p,end:p+2+n});p+=2+n;}return out;}
+function sansExif(b){const segs=segments(b).filter(s=>s.m===225&&String.fromCharCode(...b.slice(s.start+4,s.start+10))==='Exif\0\0');const parts=[b.slice(0,2)];let p=2;for(const s of segs){parts.push(b.slice(p,s.start));p=s.end;}parts.push(b.slice(p));return new Blob(parts,{type:'image/jpeg'});}
+function app(marker,data){const b=new Uint8Array(data.length+4);b.set([255,marker,(data.length+2)>>8,(data.length+2)&255]);b.set(data,4);return b;}
+function versII(seg){const b=seg.slice(),base=10,v=new DataView(b.buffer);const visited=new Set();function walk(offset){if(!offset||visited.has(offset))return;visited.add(offset);const at=base+offset,n=v.getUint16(at,false);v.setUint16(at,n,true);for(let i=0;i<n;i++){const p=at+2+12*i,tag=v.getUint16(p),type=v.getUint16(p+2),count=v.getUint32(p+4),val=v.getUint32(p+8);v.setUint16(p,tag,true);v.setUint16(p+2,type,true);v.setUint32(p+4,count,true);const len=({1:1,2:1,3:2,4:4,5:8,7:1}[type]||1)*count;let q=len>4?base+val:p+8;if(len>4)v.setUint32(p+8,val,true);if(type===3)for(let j=0;j<count;j++){const z=v.getUint16(q+2*j);v.setUint16(q+2*j,z,true);}if(type===4||type===5)for(let j=0;j<count*(type===5?2:1);j++){const z=v.getUint32(q+4*j);v.setUint32(q+4*j,z,true);}if(tag===0x8769||tag===0x8825)walk(val);}const next=v.getUint32(at+2+12*n);v.setUint32(at+2+12*n,next,true);walk(next);}walk(8);b[10]=73;b[11]=73;v.setUint16(12,42,true);v.setUint32(14,8,true);return b;}
+async function fabriquer(){const c=document.createElement('canvas');c.width=640;c.height=480;const x=c.getContext('2d');x.fillStyle='#FFFBF5';x.fillRect(0,0,640,480);x.fillStyle='#7D3A5E';x.fillRect(60,60,520,200);x.fillStyle='#111';x.font='28px system-ui';x.fillText('JW — PHOTO SYNTHETIQUE',40,330);const raw=new Uint8Array(await (await new Promise(r=>c.toBlob(r,'image/jpeg',.85))).arrayBuffer());const clean=new Uint8Array(await sansExif(raw).arrayBuffer());const tagged=new Uint8Array(await (await exifJpeg(new Blob([clean]),Date.parse('2026-11-12T11:11:12Z'),{lat:48.85,lon:2.35,acc:5},'JW-OTT-BANC P01')).arrayBuffer());const e=segments(tagged).find(s=>s.m===225);const ex=tagged.slice(e.start,e.end);const jfif=app(224,new Uint8Array([74,70,73,70,0,1,1,0,0,1,0,1,0,0]));const imageParts=[];let p=2;for(const s of segments(clean)){if(s.m===224){imageParts.push(clean.slice(p,s.start));p=s.end;}}imageParts.push(clean.slice(p));const body=new Uint8Array(await new Blob(imageParts).arrayBuffer());
+const wrap=(parts)=>new Blob([new Uint8Array([255,216]),...parts,body],{type:'image/jpeg'});
+// Second EXIF minimal valide : ColorSpace dans ExifIFD.
+const second=app(225,new Uint8Array([69,120,105,102,0,0,77,77,0,42,0,0,0,8,0,1,135,105,0,4,0,0,0,1,0,0,0,26,0,0,0,0,0,1,164,1,0,3,0,0,0,1,0,1,0,0,0,0,0,0]));
+const xml='<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:exif="http://ns.adobe.com/exif/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/" exif:DateTimeOriginal="2026-11-12T11:11:12Z" exif:GPSLatitude="48,51N" exif:GPSLongitude="2,21E"><dc:description><rdf:Alt><rdf:li xml:lang="x-default">JW-OTT-BANC P01</rdf:li></rdf:Alt></dc:description></rdf:RDF></x:xmpmeta>';
+const xmp=app(225,new TextEncoder().encode('http://ns.adobe.com/xap/1.0/\0'+xml));
+// Vignette JPEG dans IFD1 ; pointeur IFD0 vers nouveau répertoire en fin de TIFF.
+const thumb=clean,old=ex.slice(10),ifdOffset=old.length,thumbOffset=ifdOffset+42,tiff=new Uint8Array(thumbOffset+thumb.length);tiff.set(old);const tv=new DataView(tiff.buffer),n=tv.getUint16(8);tv.setUint32(8+2+n*12,ifdOffset);tv.setUint16(ifdOffset,3);const entries=[[0x103,3,1,6],[0x201,4,1,thumbOffset],[0x202,4,1,thumb.length]];entries.forEach(([tag,type,count,value],i)=>{let q=ifdOffset+2+i*12;tv.setUint16(q,tag);tv.setUint16(q+2,type);tv.setUint32(q+4,count);type===3?tv.setUint16(q+8,value):tv.setUint32(q+8,value);});tiff.set(thumb,thumbOffset);const withThumb=app(225,new Uint8Array(await new Blob([new Uint8Array([69,120,105,102,0,0]),tiff]).arrayBuffer()));
+return [['A_un_EXIF_MM_APP0',wrap([jfif,ex])],['B_deux_EXIF',wrap([jfif,ex,second])],['C_EXIF_avant_APP0',wrap([ex,jfif])],['D_un_EXIF_II',wrap([jfif,versII(ex)])],['E_EXIF_et_XMP',wrap([jfif,ex,xmp])],['F_EXIF_vignette',wrap([jfif,withThumb])]];}
+let variantes=[];document.getElementById('make').onclick=async()=>{try{variantes=await fabriquer();const out=document.getElementById('out');out.replaceChildren();for(const [nom,blob] of variantes){const label=document.createElement('h2');label.textContent=nom;out.append(label);const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nom+'.jpg';a.textContent='Télécharger '+nom;out.append(a);const f=new File([blob],nom+'.jpg',{type:'image/jpeg'});const b=document.createElement('button');b.textContent='Partager '+nom;b.onclick=async()=>{try{if(!navigator.canShare?.({files:[f]}))throw Error('Partage indisponible : utilise Télécharger');await navigator.share({files:[f]});document.getElementById('status').textContent='Feuille refermée. Vérifie la destination.';}catch(e){document.getElementById('status').textContent=e.message;}};out.append(b);}document.getElementById('status').textContent='6 variantes prêtes. Partage chacune vers Photos, puis exporte les originaux.';}catch(e){document.getElementById('status').textContent=e.stack;}};
+</script></html>
