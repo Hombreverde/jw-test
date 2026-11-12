@@ -1417,7 +1417,8 @@ async function exportJSON(sess,obs,localSeulement){
    AirDrop et /marche la placent seuls, même renommée.
    0.4.11 : « Enregistrer N images » (Photos de l'iPhone) vide l'heure et la position ; la feuille de partage
    ne dit pas ce qui a été choisi. Le bouton devient « Envoyer à JW », avec la consigne AirDrop ou Fichiers
-   avant le toucher, et un compte rendu honnête après.
+   avant le toucher, et un compte rendu honnête après. Un 📷 qui revient sans photo (écran noir chez Myriam,
+   marche JW-OTT-A9CK) est noté (photo_ouverte, photo_sans_fichier) et affiche l'aide « Réglages › Chrome ».
    (feuille de partage : Photos, AirDrop, Fichiers). Elles ne partent jamais au dépôt. */
 const PHOTO_DB="jw_cockpit_photos", PHOTO_STORE="photo", PHOTO_SHARED_KEY="jw_photos_partagees";
 const photoMem=new Map();
@@ -1449,8 +1450,13 @@ async function reduirePhoto(file){
   return{blob:file,w:null,h:null};
 }
 let photoToastTimer=null;
-function photoToast(text,err){const t=$("#photoToast");t.textContent=text;t.classList.toggle("err",!!err);
-  t.style.display="block";clearTimeout(photoToastTimer);photoToastTimer=setTimeout(()=>{t.style.display="none";},err?8000:3500);}
+function photoToast(text,err,ms){const t=$("#photoToast");t.textContent=text;t.classList.toggle("err",!!err);
+  t.style.display="block";clearTimeout(photoToastTimer);photoToastTimer=setTimeout(()=>{t.style.display="none";},ms||(err?8000:3500));}
+/* 0.4.11 — un 📷 qui revient sans photo laisse une trace et une aide (écran noir = accès refusé à Chrome) */
+let photoAttente=0;
+function photoSansFichier(comment){if(!photoAttente&&comment!=="change")return;photoAttente=0;
+  pushEvent("photo_sans_fichier",comment);
+  photoToast("Pas de photo ? Si l'écran était noir : Réglages › Chrome › Appareil photo › activer.",true,12000);}
 /* position au moment de la prise de vue : l'échantillon le plus proche de l'heure du fichier */
 function positionPhoto(ts){
   const s=(session.samples||[]);let best=null,dt=Infinity;
@@ -1952,11 +1958,17 @@ document.addEventListener("DOMContentLoaded",()=>{
   $("#btnPhoto").onclick=()=>{
     if(mode!=="walk"||!session)return;
     closeSheet();closeWalkMenu();hideWalkMission();
-    const inp=$("#photoInput");inp.value="";inp.click();
+    const inp=$("#photoInput");inp.value="";pushEvent("photo_ouverte",null);photoAttente=Date.now();inp.click();
   };
+  $("#photoInput").addEventListener("cancel",()=>photoSansFichier("cancel"));
+  const retourSansPhoto=()=>{if(!photoAttente||document.visibilityState==="hidden")return;
+    setTimeout(()=>{if(photoAttente&&Date.now()-photoAttente>2500)photoSansFichier("retour");},2500);};
+  window.addEventListener("focus",retourSansPhoto);
+  document.addEventListener("visibilitychange",retourSansPhoto);
   $("#photoInput").addEventListener("change",async function(){
     const f=this.files&&this.files[0];
-    if(!f){pushEvent("photo_annulee",null);return;}
+    if(!f){photoAttente=Date.now()-3000;photoSansFichier("change");return;}
+    photoAttente=0;
     try{await photoPrise(f);}catch(e){photoToast("⚠ La photo n'a pas pu être gardée ("+(e&&e.message||e)+")",true);}
   });
   $("#btnPhotos").onclick=()=>enregistrerPhotos();
