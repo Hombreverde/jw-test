@@ -878,7 +878,17 @@ function startWatch(){if(watchId==null)
   watchId=navigator.geolocation.watchPosition(onPos,onGeoErr,
     {enableHighAccuracy:true,maximumAge:2000,timeout:20000});}
 function stopWatch(){if(watchId!=null){navigator.geolocation.clearWatch(watchId);watchId=null;}}
-function onGeoErr(e){alert("Le téléphone ne donne pas la position ("+e.message+"). Autorise la localisation pour ce site, puis recharge.");}
+function onGeoErr(e){
+  if(e&&e.code===1){pushEvent("position_refusee",null);
+    const ua=navigator.userAgent||"",ios=/iPhone|iPad|iPod/.test(ua);
+    if(ios){const chrome=/CriOS/.test(ua),
+      s="• Safari : Réglages › Confidentialité et sécurité › Service de localisation › Sites web Safari › « Lorsque l'app est active »",
+      c="• Chrome : Réglages › Apps › Chrome › Position › « Lorsque l'app est active », et Position exacte activée";
+      alert("Le téléphone refuse de donner la position. Pour l'autoriser :\n"+(chrome?c+"\n"+s:s+"\n"+c)+
+        "\nVérifie aussi que le Service de localisation est activé (Réglages › Confidentialité et sécurité). Puis recharge la page.");}
+    else alert("Le téléphone refuse de donner la position. Autorise la position pour ce site dans les réglages du navigateur, puis recharge la page.");
+    return;}
+  alert("Le téléphone ne donne pas la position ("+e.message+"). Autorise la localisation pour ce site, puis recharge.");}
 function onPos(pos){
   if(mode!=="walk"||!session)return;
   if(!Number.isFinite(pos.timestamp)||(lastFixAt!=null&&pos.timestamp<=lastFixAt))return;
@@ -1456,7 +1466,7 @@ function photoToast(text,err,ms){const t=$("#photoToast");t.textContent=text;t.c
 let photoAttente=0;
 function photoSansFichier(comment){if(!photoAttente&&comment!=="change")return;photoAttente=0;
   pushEvent("photo_sans_fichier",comment);
-  photoToast("Pas de photo ? Si l'écran était noir : Réglages › Chrome › Appareil photo › activer.",true,12000);}
+  photoToast("Pas de photo ? Si l'écran était noir : Réglages › Apps › Chrome › Appareil photo › activer.",true,12000);}
 /* position au moment de la prise de vue : l'échantillon le plus proche de l'heure du fichier */
 function positionPhoto(ts){
   const s=(session.samples||[]);let best=null,dt=Infinity;
