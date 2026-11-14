@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="AGI, À Gauche, Ici. Journey Walker : des circuits à pied dans Paris, tracés par ceux qui l'habitent.">
+<meta property="og:title" content="AGI — À Gauche, Ici">
+<meta property="og:description" content="Des circuits à pied dans Paris, tracés par ceux qui l'habitent. Et JW cherche son ou sa CTO co-fondateur·rice.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://hombreverde.github.io/jw-test/agi/">
+<link rel="icon" type="image/png" href="../jw-icon-180.png">
+<link rel="apple-touch-icon" href="../jw-icon-180.png">
+<title>À Gauche, Ici</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Une seule colonne de téléphone, le monde de la carte de visite : papier crème, encre verte, pas dorés. Thème clair assumé. */
+:root {
+  --papier: #FAF8F3;
+  --papier-fonce: #F1ECE0;
+  --encre: #1E3D2F;
+  --vert: #2F6B4F;
+  --or: #B8862A;
+  --ocre: #A5622A;
+  --gris: #55615A;
+  --display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --texte: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--papier);
+  color: var(--encre);
+  font-family: var(--texte);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+.page {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding-block: 1.5rem 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 2.75rem;
+}
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; }
+p { margin: 0; text-wrap: pretty; }
+a { color: var(--vert); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--ocre); outline-offset: 3px; border-radius: 4px; }
+
+/* En-tête */
+.entete { display: flex; align-items: center; gap: 0.75rem; }
+.entete img { width: 64px; height: auto; }
+.entete span { font-family: var(--display); font-weight: 600; font-size: 1.05rem; color: var(--vert); }
+
+/* La chute */
+.chute { display: flex; flex-direction: column; gap: 0.5rem; }
+.chute h1 { font-size: clamp(5.5rem, 30vw, 9rem); line-height: 0.9; font-weight: 700; letter-spacing: -0.02em; color: var(--vert); }
+.chute .sigle { font-family: var(--display); font-style: italic; font-size: clamp(1.6rem, 7vw, 2.1rem); line-height: 1.15; }
+.chute .sigle b { color: var(--ocre); font-weight: 700; }
+.chute svg { width: 100%; height: auto; display: block; }
+.chute .lead { font-size: 1.2rem; line-height: 1.5; }
+
+/* Sections */
+section { display: flex; flex-direction: column; gap: 0.9rem; }
+section h2 { font-size: 1.6rem; font-weight: 600; color: var(--vert); }
+.chiffre { font-family: var(--display); font-size: 1.15rem; color: var(--gris); font-variant-numeric: tabular-nums; }
+.chiffre strong { color: var(--encre); font-size: 1.6rem; font-weight: 700; }
+
+/* Les circuits à essayer */
+.circuits { display: flex; flex-direction: column; gap: 0.75rem; }
+.circuit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding: 1rem 1.1rem;
+  background: #FFFFFF;
+  border: 1px solid #DDD4C2;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--encre);
+  min-height: 44px;
+}
+.circuit:hover { border-color: var(--vert); }
+.circuit .etiquette { grid-column: 1; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ocre); }
+.circuit .nom { grid-column: 1; font-family: var(--display); font-size: 1.2rem; font-weight: 600; line-height: 1.25; }
+.circuit .infos { grid-column: 1; font-size: 0.95rem; color: var(--gris); font-variant-numeric: tabular-nums; }
+.circuit .fleche { grid-column: 2; grid-row: 1 / span 3; color: var(--vert); }
+.tous { font-weight: 600; }
+
+/* L'annonce */
+.annonce { background: var(--papier-fonce); border-radius: 10px; padding: 1.4rem 1.25rem; }
+.annonce .profil { font-family: var(--display); font-style: italic; font-size: 1.25rem; line-height: 1.35; }
+.annonce .profil b { color: var(--ocre); font-style: normal; }
+.bouton {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0.75rem 1.4rem;
+  border-radius: 999px;
+  background: var(--vert);
+  color: var(--papier);
+  font-weight: 600;
+  font-size: 1.05rem;
+  text-decoration: none;
+}
+.bouton:hover { background: var(--encre); }
+
+/* Contact */
+.contact { display: flex; flex-direction: column; gap: 0.35rem; }
+.contact .qui { font-family: var(--display); font-size: 1.35rem; font-weight: 600; }
+.contact .role { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gris); }
+.ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; font-variant-numeric: tabular-nums; }
+.ligne a { font-size: 1.1rem; overflow-wrap: anywhere; }
+button.copier {
+  font: 600 0.85rem var(--texte);
+  color: var(--vert);
+  background: transparent;
+  border: 1px solid var(--vert);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  min-height: 36px;
+  cursor: pointer;
+}
+button.copier:hover { background: var(--vert); color: var(--papier); }
+
+footer { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; color: var(--gris); }
+footer .devise { font-family: var(--display); font-style: italic; font-size: 1.05rem; color: var(--vert); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .pas { stroke-dashoffset: 0; animation: marche 2.4s ease-out both; }
+  @keyframes marche { from { stroke-dashoffset: 60; } to { stroke-dashoffset: 0; } }
+}
+</style>
+<style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} img{max-width:100%} [hidden]{display:none!important}</style>
+</head>
+<body>
+<main class="page">
+  <header class="entete">
+    <img src="jw-monogramme.png" alt="" width="64" height="37">
+    <span>Journey Walker</span>
+  </header>
+
+  <div class="chute">
+    <h1>AGI</h1>
+    <p class="sigle"><b>À</b> <b>G</b>auche, <b>I</b>ci.</p>
+    <svg viewBox="0 0 320 70" aria-hidden="true">
+      <path class="pas" d="M300 62V26Q300 12 286 12H40" fill="none" stroke="#B8862A" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="0 7.5"></path>
+      <polyline points="38,4 28,12 38,20" fill="none" stroke="#B8862A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
+      <circle cx="300" cy="62" r="6" fill="#A5622A"></circle>
+    </svg>
+    <p class="lead">L'intelligence générale qui nous intéresse est celle des gens qui vivent à Paris. Ils savent par où passer. Nous en faisons des circuits à pied.</p>
+  </div>
+
+  <section aria-labelledby="titre-jw">
+    <h2 id="titre-jw">Journey Walker</h2>
+    <p>Des circuits à pied, d'abord dans Paris, puis dans toutes les grandes capitales du monde, tracés par des habitants ou marchés et validés par notre équipe. Sur votre téléphone, la carte vous mène d'un arrêt à l'autre, et chaque lieu a sa photo et quelques lignes pour le présenter. Tout se passe dans le navigateur : rien à installer.</p>
+    <p class="chiffre"><strong>19</strong> circuits validés à pied à Paris</p>
+  </section>
+
+  <section aria-labelledby="titre-essayer">
+    <h2 id="titre-essayer">Essayer maintenant</h2>
+    <div class="circuits">
+      <a class="circuit" href="https://hombreverde.github.io/jw-test/paris-passages.html?parcours">
+        <span class="etiquette">Le plus proche du 153, rue Saint-Martin</span>
+        <span class="nom">Les passages couverts</span>
+        <span class="infos">3,8 km · environ 1 h · départ métro Étienne Marcel</span>
+        <svg class="fleche" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </a>
+      <a class="circuit" href="https://hombreverde.github.io/jw-test/paris-9-2.html?parcours">
+        <span class="etiquette">Le tracé dessiné au dos de la carte</span>
+        <span class="nom">De la rue Saint-Dominique à la tour Eiffel</span>
+        <span class="infos">4,5 km · environ 1 h 10</span>
+        <svg class="fleche" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </a>
+    </div>
+    <p><a class="tous" href="https://hombreverde.github.io/jw-test/paris-passages.html">Voir les 19 circuits de Paris</a></p>
+  </section>
+
+  <section class="annonce" aria-labelledby="titre-annonce">
+    <h2 id="titre-annonce">JW cherche CTO co-fondateur·rice</h2>
+    <p class="profil">Profil <b>LLM</b> : aime <b>L</b>es <b>L</b>ongues <b>M</b>arches.</p>
+    <p>Une dizaine de questions : qui vous êtes, ce que vous savez faire, ce que vous avez construit.</p>
+    <a class="bouton" href="cto.html">Répondre au questionnaire</a>
+  </section>
+
+  <section class="contact" aria-labelledby="titre-contact">
+    <h2 id="titre-contact" class="qui">José Ponsoda</h2>
+    <p class="role">Fondateur de Journey Walker</p>
+    <div class="ligne">
+      <a id="courriel" href="mailto:journeywalkerapp@gmail.com">journeywalkerapp@gmail.com</a>
+      <button class="copier" id="copier-courriel" type="button" data-texte="journeywalkerapp@gmail.com">Copier</button>
+    </div>
+    <div class="ligne">
+      <a href="tel:+18196645329">+1 819 664-5329</a>
+    </div>
+  </section>
+
+  <footer>
+    <p class="devise">On enregistre le chemin, pas la personne.</p>
+    <p>Journey Walker · Paris, novembre 2026</p>
+  </footer>
+</main>
+
+<script>
+document.querySelectorAll('button.copier').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var t = b.getAttribute('data-texte');
+    var fini = function () { b.textContent = 'Copié'; setTimeout(function () { b.textContent = 'Copier'; }, 1800); };
+    var repli = function () {
+      var a = document.getElementById('courriel');
+      var r = document.createRange(); r.selectNodeContents(a);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      b.textContent = 'Sélectionné';
+    };
+    try {
+      navigator.clipboard.writeText(t).then(fini, repli);
+    } catch (e) { repli(); }
+  });
+});
+</script>
+</body>
+</html>

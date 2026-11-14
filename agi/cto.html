@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Candidature CTO</title>
+<meta name="description" content="Journey Walker cherche son ou sa CTO co-fondateur·rice. Une dizaine de questions.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Le questionnaire, même monde que la carte : papier crème, encre verte, initiales ocre. Thème clair assumé. */
+:root {
+  --papier: #FAF8F3;
+  --papier-fonce: #F1ECE0;
+  --blanc: #FFFFFF;
+  --encre: #1E3D2F;
+  --vert: #2F6B4F;
+  --or: #B8862A;
+  --ocre: #A5622A;
+  --gris: #55615A;
+  --bord: #CFC5B0;
+  --display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --texte: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; background: var(--papier); color: var(--encre); font-family: var(--texte); font-size: 1.0625rem; line-height: 1.5; }
+.page {
+  max-width: 36rem;
+  margin: 0 auto;
+  padding-block: 1.25rem 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; color: var(--vert); }
+p { margin: 0; text-wrap: pretty; }
+a { color: var(--vert); }
+.retour { font-weight: 600; text-decoration: none; }
+.tete { display: flex; flex-direction: column; gap: 0.6rem; }
+.tete h1 { font-size: clamp(1.9rem, 8vw, 2.5rem); line-height: 1.1; }
+.tete .profil { font-family: var(--display); font-style: italic; font-size: 1.2rem; }
+.tete .profil b { color: var(--ocre); font-style: normal; }
+
+form { display: flex; flex-direction: column; gap: 1.6rem; }
+fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.1rem; min-width: 0; }
+legend { font-family: var(--display); font-size: 1.3rem; font-weight: 600; color: var(--vert); padding: 0; margin-bottom: 0.2rem; }
+.champ { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1.1rem; }
+label, .question { font-weight: 600; }
+.aide { font-size: 0.92rem; color: var(--gris); font-weight: 400; }
+.req { color: var(--ocre); }
+input[type=text], input[type=email], input[type=url], textarea {
+  width: 100%;
+  font: 400 1rem/1.4 var(--texte);
+  font-size: 16px;
+  color: var(--encre);
+  background: var(--blanc);
+  border: 1px solid var(--bord);
+  border-radius: 8px;
+  padding: 0.7rem 0.8rem;
+}
+textarea { min-height: 7rem; resize: vertical; }
+input:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, .puce input:focus-visible + span {
+  outline: 2px solid var(--ocre); outline-offset: 2px;
+}
+.compteur { font-size: 0.9rem; color: var(--gris); font-variant-numeric: tabular-nums; }
+.compteur.hors { color: var(--ocre); font-weight: 600; }
+
+.puces { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.puce { position: relative; }
+.puce input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.puce span {
+  display: inline-flex; align-items: center; min-height: 44px;
+  padding: 0.45rem 0.9rem; border-radius: 999px;
+  border: 1px solid var(--bord); background: var(--blanc);
+  font-size: 0.98rem; cursor: pointer;
+}
+.puce input:checked + span { background: var(--vert); border-color: var(--vert); color: var(--papier); }
+
+.liste { display: flex; flex-direction: column; gap: 0.5rem; }
+.liste .ligne { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); align-items: center; gap: 0.4rem; }
+.liste .num { font-family: var(--display); color: var(--or); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.vie-privee { font-size: 0.92rem; color: var(--gris); background: var(--papier-fonce); border-radius: 8px; padding: 0.8rem 0.9rem; }
+.erreur { color: #9A3412; font-weight: 600; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+button {
+  font: 600 1.05rem var(--texte);
+  min-height: 48px; padding: 0.7rem 1.4rem; border-radius: 999px; cursor: pointer;
+}
+.principal { background: var(--vert); color: var(--papier); border: 1px solid var(--vert); }
+.principal:hover { background: var(--encre); }
+.second { background: transparent; color: var(--vert); border: 1px solid var(--vert); }
+.second:hover { background: var(--papier-fonce); }
+.apres { display: flex; flex-direction: column; gap: 0.6rem; background: var(--blanc); border: 1px solid var(--vert); border-radius: 10px; padding: 1rem 1.1rem; }
+.apres strong { font-family: var(--display); font-size: 1.15rem; color: var(--vert); }
+.adresse { font-weight: 600; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<main class="page">
+  <a class="retour" href="./">← Journey Walker</a>
+
+  <header class="tete">
+    <h1>JW cherche CTO co-fondateur·rice</h1>
+    <p class="profil">Profil <b>LLM</b> : aime <b>L</b>es <b>L</b>ongues <b>M</b>arches.</p>
+    <p>Une dizaine de questions. Vos réponses partent par courriel, depuis votre propre messagerie, à l'équipe de Journey Walker.</p>
+  </header>
+
+  <form id="formulaire" novalidate>
+    <fieldset>
+      <legend>Vous</legend>
+      <div class="deux">
+        <div class="champ"><label for="prenom">Prénom <span class="req">*</span></label><input id="prenom" name="prenom" type="text" autocomplete="given-name" required></div>
+        <div class="champ"><label for="nom">Nom <span class="req">*</span></label><input id="nom" name="nom" type="text" autocomplete="family-name" required></div>
+      </div>
+      <div class="champ"><label for="courriel">Courriel <span class="req">*</span></label><input id="courriel" name="courriel" type="email" autocomplete="email" inputmode="email" required></div>
+      <div class="champ"><label for="lien">LinkedIn ou GitHub <span class="aide">(facultatif)</span></label><input id="lien" name="lien" type="url" inputmode="url" placeholder="https://"></div>
+      <div class="champ"><label for="occupation">Votre occupation actuelle <span class="req">*</span></label><input id="occupation" name="occupation" type="text" required></div>
+      <div class="champ"><label for="langues">Quelles langues parlez-vous ? <span class="req">*</span></label><input id="langues" name="langues" type="text" placeholder="Ex. : français (langue maternelle), anglais (courant), espagnol (notions)" required></div>
+      <div class="champ">
+        <label for="phrase">Décrivez-vous en une phrase <span class="req">*</span></label>
+        <span class="aide" id="phrase-aide">De 20 à 30 mots.</span>
+        <textarea id="phrase" name="phrase" rows="3" aria-describedby="phrase-aide phrase-compte" required></textarea>
+        <span class="compteur" id="phrase-compte" aria-live="polite">0 mot</span>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Ce que vous savez faire</legend>
+      <div class="champ">
+        <span class="question" id="q-competences">Vos champs de compétence <span class="req">*</span></span>
+        <div class="puces" role="group" aria-labelledby="q-competences">
+          <label class="puce"><input type="checkbox" name="competences" value="Applications mobiles (iOS, Android)"><span>Applications mobiles</span></label>
+          <label class="puce"><input type="checkbox" name="competences" value="Web et applications web"><span>Web et applications web</span></label>
+          <label class="puce"><input type="checkbox" name="competences" value="Back-end et API"><span>Back-end et API</span></label>
+          <label class="puce"><input type="checkbox" name="competences" value="Géolocalisation et cartographie"><span>Géolocalisation et cartes</span></label>
+          <label class="puce"><input type="checkbox" name="competences" value="IA, agents et modèles de langage"><span>IA et agents</span></label>
+          <label class="puce"><input type="checkbox" name="competences" value="Données et analyse"><span>Données</span></label>
+          <label class="puce"><input type="checkbox" name="competences" value="Design produit et UX"><span>Design produit</span></label>
+          <label class="puce"><input type="checkbox" name="competences" value="Infrastructure et sécurité"><span>Infrastructure et sécurité</span></label>
+        </div>
+        <label for="autres" class="aide">Autres compétences</label>
+        <input id="autres" name="autres" type="text">
+      </div>
+      <div class="champ">
+        <label for="projet">Le projet dont vous êtes le plus fier <span class="req">*</span></label>
+        <span class="aide">Ce que c'était, et ce que vous y avez fait.</span>
+        <textarea id="projet" name="projet" rows="5" required></textarea>
+      </div>
+      <div class="champ">
+        <span class="question" id="q-societes">Deux ou trois sociétés pour lesquelles vous avez travaillé, ou auxquelles vous avez contribué <span class="req">*</span></span>
+        <div class="liste" role="group" aria-labelledby="q-societes">
+          <div class="ligne"><span class="num">1</span><input id="societe1" name="societe1" type="text" aria-label="Société 1" required></div>
+          <div class="ligne"><span class="num">2</span><input id="societe2" name="societe2" type="text" aria-label="Société 2" required></div>
+          <div class="ligne"><span class="num">3</span><input id="societe3" name="societe3" type="text" aria-label="Société 3, facultatif" placeholder="facultatif"></div>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Pourquoi vous</legend>
+      <div class="champ">
+        <span class="question" id="q-qualites">Quatre qualités qui feraient de vous la ou le futur CTO de Journey Walker <span class="req">*</span></span>
+        <div class="liste" role="group" aria-labelledby="q-qualites">
+          <div class="ligne"><span class="num">1</span><input id="qualite1" name="qualite1" type="text" aria-label="Qualité 1" required></div>
+          <div class="ligne"><span class="num">2</span><input id="qualite2" name="qualite2" type="text" aria-label="Qualité 2" required></div>
+          <div class="ligne"><span class="num">3</span><input id="qualite3" name="qualite3" type="text" aria-label="Qualité 3" required></div>
+          <div class="ligne"><span class="num">4</span><input id="qualite4" name="qualite4" type="text" aria-label="Qualité 4" required></div>
+        </div>
+      </div>
+      <div class="champ">
+        <label for="marche">Votre plus longue marche <span class="aide">(facultatif)</span></label>
+        <input id="marche" name="marche" type="text" placeholder="Où, combien de kilomètres, avec qui…">
+      </div>
+    </fieldset>
+
+    <p class="vie-privee">Vos réponses sont gardées sur ce téléphone le temps de remplir le questionnaire. Elles ne partent que lorsque vous envoyez le courriel, et Journey Walker ne s'en sert que pour ce recrutement. Pour les faire effacer, il suffit de nous l'écrire.</p>
+
+    <p class="erreur" id="erreur" role="alert" hidden></p>
+
+    <div class="actions">
+      <button class="principal" type="submit" id="preparer">Préparer mon courriel</button>
+      <button class="second" type="button" id="copier">Copier mes réponses</button>
+    </div>
+
+    <div class="apres" id="apres" hidden>
+      <strong>Il reste à appuyer sur Envoyer.</strong>
+      <p>Votre messagerie devrait s'ouvrir avec vos réponses déjà écrites. Si rien ne s'ouvre, copiez vos réponses et envoyez-les à :</p>
+      <p class="adresse">journeywalkerapp@gmail.com</p>
+    </div>
+  </form>
+</main>
+
+<script>
+(function () {
+  var DEST = 'journeywalkerapp@gmail.com';
+  var CLE = 'jw-candidature-cto';
+  var f = document.getElementById('formulaire');
+  var erreur = document.getElementById('erreur');
+  var phrase = document.getElementById('phrase');
+  var compte = document.getElementById('phrase-compte');
+
+  function mots(t) { var m = t.trim().match(/\S+/g); return m ? m.length : 0; }
+  function majCompte() {
+    var n = mots(phrase.value);
+    compte.textContent = n + (n > 1 ? ' mots' : ' mot') + ' · de 20 à 30';
+    compte.classList.toggle('hors', n > 0 && (n < 20 || n > 30));
+  }
+
+  function lire() {
+    var d = {};
+    f.querySelectorAll('input[type=text], input[type=email], input[type=url], textarea').forEach(function (el) { d[el.id] = el.value.trim(); });
+    d.competences = [].map.call(f.querySelectorAll('input[name=competences]:checked'), function (c) { return c.value; });
+    return d;
+  }
+  function garder() { try { localStorage.setItem(CLE, JSON.stringify(lire())); } catch (e) {} }
+  function reprendre() {
+    var d; try { d = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { d = null; }
+    if (!d) return;
+    Object.keys(d).forEach(function (k) { var el = document.getElementById(k); if (el && typeof d[k] === 'string') el.value = d[k]; });
+    (d.competences || []).forEach(function (v) {
+      f.querySelectorAll('input[name=competences]').forEach(function (c) { if (c.value === v) c.checked = true; });
+    });
+  }
+
+  function texte(d) {
+    var comp = d.competences.slice(); if (d.autres) comp.push(d.autres);
+    var soc = [d.societe1, d.societe2, d.societe3].filter(Boolean);
+    return [
+      'Candidature CTO co-fondateur·rice — Journey Walker', '',
+      'Prénom : ' + d.prenom,
+      'Nom : ' + d.nom,
+      'Courriel : ' + d.courriel,
+      'LinkedIn ou GitHub : ' + (d.lien || '—'),
+      'Occupation actuelle : ' + d.occupation,
+      'Langues : ' + d.langues, '',
+      'En une phrase :', d.phrase, '',
+      'Champs de compétence : ' + comp.join(', '), '',
+      'Le projet dont je suis le plus fier :', d.projet, '',
+      'Sociétés : ' + soc.join(' ; '), '',
+      'Quatre qualités pour être CTO de Journey Walker :',
+      '1. ' + d.qualite1, '2. ' + d.qualite2, '3. ' + d.qualite3, '4. ' + d.qualite4, '',
+      'Ma plus longue marche : ' + (d.marche || '—'), '',
+      '(Questionnaire de la carte AGI — À Gauche, Ici)'
+    ].join('\n');
+  }
+
+  function manque(d) {
+    var champs = [['prenom', 'votre prénom'], ['nom', 'votre nom'], ['courriel', 'votre courriel'], ['occupation', 'votre occupation actuelle'], ['langues', 'les langues que vous parlez'],
+      ['phrase', 'votre phrase'], ['projet', 'votre projet'], ['societe1', 'une première société'], ['societe2', 'une deuxième société'],
+      ['qualite1', 'la qualité 1'], ['qualite2', 'la qualité 2'], ['qualite3', 'la qualité 3'], ['qualite4', 'la qualité 4']];
+    for (var i = 0; i < champs.length; i++) { if (!d[champs[i][0]]) return champs[i]; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.courriel)) return ['courriel', 'un courriel valide'];
+    if (!d.competences.length && !d.autres) return ['autres', 'au moins un champ de compétence'];
+    return null;
+  }
+
+  function copier(d) {
+    var t = texte(d);
+    var b = document.getElementById('copier');
+    var fini = function () { b.textContent = 'Réponses copiées'; setTimeout(function () { b.textContent = 'Copier mes réponses'; }, 2000); };
+    try { navigator.clipboard.writeText(t).then(fini, function () { b.textContent = 'Copie impossible : sélectionnez le texte'; }); }
+    catch (e) { b.textContent = 'Copie impossible : sélectionnez le texte'; }
+  }
+
+  f.addEventListener('input', function () { majCompte(); garder(); });
+  f.addEventListener('change', garder);
+  document.getElementById('copier').addEventListener('click', function () { copier(lire()); });
+  f.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var d = lire(), m = manque(d);
+    if (m) {
+      erreur.textContent = 'Il manque ' + m[1] + '.';
+      erreur.hidden = false;
+      var el = document.getElementById(m[0]); if (el) el.focus();
+      return;
+    }
+    erreur.hidden = true;
+    var sujet = 'Candidature CTO — ' + d.prenom + ' ' + d.nom;
+    document.getElementById('apres').hidden = false;
+    location.href = 'mailto:' + DEST + '?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(texte(d));
+  });
+
+  reprendre();
+  majCompte();
+})();
+</script>
+</body>
+</html>

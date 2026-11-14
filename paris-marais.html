@@ -142,6 +142,7 @@
   .stoplist .tx{flex:1;line-height:1.3;font-weight:600}
   .stoplist .p{font-size:15px;color:var(--warn);font-weight:700;display:block;margin-top:3px}
   .stoplist .m{color:var(--dim);font-size:17px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+  /* 0.6.7 (14/11) : dans le catalogue, un seul toucher ouvre la fiche d'un autre circuit (lien ?parcours, posé par tools/jw_app_visiteur_fabriquer.py) */
   /* 0.6.6 (14/11) : une photo fixe par arrêt ; les stations ont une bannière façon plaque (sans logo, police ni couleurs RATP) */
   .stoplist li{gap:12px}
   .ph{flex:0 0 72px;width:72px;height:72px;border-radius:10px;object-fit:cover;background:#E5E9EE;border:1px solid #C9D1DA}
@@ -174,18 +175,18 @@
 
 <!-- ═══ 1. CATALOGUE ═══ -->
 <section id="scCat" class="screen on">
-  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.6</span></header>
+  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.7</span></header>
   <div class="scroll">
     <p class="lead">Parcours à pied, commentés, à ton rythme. Repère-les depuis ton hôtel et planifie ta journée.</p>
     <div id="catList"></div>
     <p class="note">Parcours homologué : marché par une ambassadrice Journey Walker, arrêt par arrêt. Textes des arrêts : Wikipédia, licence CC BY-SA 4.0.</p>
-    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.6 · 14 novembre 2026 · 19 circuits à Paris</p>
+    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.7 · 14 novembre 2026 · 19 circuits à Paris</p>
   </div>
 </section>
 
 <!-- ═══ 2. FICHE DU PARCOURS ═══ -->
 <section id="scPlan" class="screen">
-  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.6</span></header>
+  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.7</span></header>
   <div class="maprow"><div id="mapPlan"></div></div>
   <div class="panel">
     <p class="lead" id="planLead">—</p>
@@ -679,7 +680,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.6.6-clair80",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.6.7-clair80",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Paris · 3ᵉ–4ᵉ",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -734,7 +735,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     b.innerHTML='<div class="band'+(c.ready?"":" p")+'"><span>'+c.ville+'</span></div>'+
       '<div class="body"><h3>'+c.nom+'</h3><div class="meta">'+c.meta+'</div>'+
       '<span class="tag">'+(c.ready?"Disponible":"En préparation")+'</span></div>';
-    if(c.ready) b.onclick=()=>{ if(c.href){ location.href=c.href; return; } show("scPlan"); setTimeout(()=>planMap.invalidateSize(),110); };
+    if(c.ready) b.onclick=()=>{ if(c.href){ location.href=c.href+"?parcours"; return; } show("scPlan"); setTimeout(()=>planMap.invalidateSize(),110); };
     else b.disabled=true;
     cat.appendChild(b);
   });
