@@ -142,6 +142,21 @@
   .stoplist .tx{flex:1;line-height:1.3;font-weight:600}
   .stoplist .p{font-size:15px;color:var(--warn);font-weight:700;display:block;margin-top:3px}
   .stoplist .m{color:var(--dim);font-size:17px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+  /* 0.6.6 (14/11) : une photo fixe par arrêt ; les stations ont une bannière façon plaque (sans logo, police ni couleurs RATP) */
+  .stoplist li{gap:12px}
+  .ph{flex:0 0 72px;width:72px;height:72px;border-radius:10px;object-fit:cover;background:#E5E9EE;border:1px solid #C9D1DA}
+  .plq{flex:0 0 72px;width:72px;height:72px;border-radius:10px;background:#1D3A5F;color:#F4F1EA;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;font-weight:800;font-size:12px;line-height:1.1;padding:4px;box-shadow:inset 0 0 0 3px #1D3A5F,inset 0 0 0 4px #F4F1EA}
+  .plq>span:first-child{overflow-wrap:anywhere;hyphens:auto;max-width:100%}
+  .stoplist .plq{font-size:11px}
+  .plq i{font-style:normal;display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:50%;background:#F4F1EA;color:#1D3A5F;font-size:12px;margin:0 1px}
+  .cred{display:block;font-size:13px;color:var(--dim);font-weight:500;margin-top:3px;line-height:1.3}
+  .cred a{color:var(--dim)}
+  #wPhoto{margin:0 0 10px;position:relative}
+  #wPhoto.vide{display:none}
+  #wPhoto img{display:block;width:100%;height:19dvh;max-height:170px;object-fit:cover;border-radius:12px;border:2px solid var(--line)}
+  #wPhoto .plq{width:100%;height:auto;min-height:64px;flex-direction:row;gap:12px;font-size:20px;padding:10px 14px}
+  #wPhoto .plq i{min-width:28px;height:28px;font-size:16px}
+  #wPhoto .cred{position:absolute;right:8px;bottom:6px;margin:0;padding:1px 7px;border-radius:6px;background:rgba(255,255,255,.88);font-size:12px;color:#33404C}
 
   fieldset{border:0;padding:0;margin:0 0 20px}
   legend{font-size:20px;font-weight:700;padding:0;margin-bottom:10px}
@@ -159,18 +174,18 @@
 
 <!-- ═══ 1. CATALOGUE ═══ -->
 <section id="scCat" class="screen on">
-  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.5</span></header>
+  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.6</span></header>
   <div class="scroll">
     <p class="lead">Parcours à pied, commentés, à ton rythme. Repère-les depuis ton hôtel et planifie ta journée.</p>
     <div id="catList"></div>
     <p class="note">Parcours homologué : marché par une ambassadrice Journey Walker, arrêt par arrêt. Textes des arrêts : Wikipédia, licence CC BY-SA 4.0.</p>
-    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.5 · 14 novembre 2026 · 19 circuits à Paris</p>
+    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.6 · 14 novembre 2026 · 19 circuits à Paris</p>
   </div>
 </section>
 
 <!-- ═══ 2. FICHE DU PARCOURS ═══ -->
 <section id="scPlan" class="screen">
-  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.5</span></header>
+  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.6</span></header>
   <div class="maprow"><div id="mapPlan"></div></div>
   <div class="panel">
     <p class="lead" id="planLead">—</p>
@@ -216,6 +231,7 @@
   <header><h1 id="wTitle">Parcours en cours</h1><span class="chip live" id="chipTime">0 min</span></header>
   <div class="maprow"><div id="mapHost" style="flex:1;display:flex"></div><div id="offRoute"></div></div>
   <div class="panel walk">
+    <div id="wPhoto" class="vide"></div>
     <p class="eyebrow" id="wEyebrow">Prochain arrêt</p>
     <div class="nextline"><span class="nm" id="wName">—</span><span class="dv" id="wDist">—</span></div>
     <p class="subline"><span id="wEta">—</span> de marche · <span id="wLeft">—</span> pour finir</p>
@@ -270,6 +286,8 @@
 <script>
 /* ═══ DONNÉES — injectées à la construction ═══ */
 const ROUTE = {"route_id":"PAR-JW-8-2","route_version":"1.0","name":"Paris — Saint-Germain-des-Prés","ville":"Paris · 6ᵉ–7ᵉ","trace_source":"tracé homologué Journey Walker, marché par une ambassadrice","stops":[{"id":"s0","name":"Métro Odéon · la statue de Danton","lat":48.8521397,"lon":2.3394565,"hook":"Le Monument à Danton est un groupe sculptural en bronze réalisée par Auguste Paris en 1891.","along":0.1,"pausable":false,"leg_d":0,"leg_t":0},{"id":"s1","name":"Église Saint-Germain-des-Prés · entrez : l'intérieur vaut le détour","lat":48.8541149,"lon":2.333913,"hook":"L'abbaye Saint-Germain-des-Prés (Sancti Germani de pratis), qui comprend l'actuelle église Saint-Germain-des-Prés, est une ancienne abbaye bénédictine de Paris (France), située 3 place Saint-Germain-des-Prés dans l'actuel 6e arrondissement.","along":525.3,"pausable":true,"leg_d":525,"leg_t":420},{"id":"s2","name":"Place de Furstemberg · le musée Delacroix (n° 6)","lat":48.8543266,"lon":2.3357439,"hook":"Le musée national Eugène-Delacroix est un musée fondé à la fin des années 1920 par la Société des Amis d’Eugène Delacroix, devenu musée national en 1971.","along":733.4,"pausable":false,"leg_d":208,"leg_t":166},{"id":"s3","name":"École des beaux-arts (14, rue Bonaparte)","lat":48.85665,"lon":2.33475,"hook":"L’École nationale supérieure des beaux-arts de Paris (ENSBA), communément dénommée Beaux-Arts de Paris, est une école d'art française fondée en 1817.","along":1105.2,"pausable":false,"leg_d":372,"leg_t":297},{"id":"s4","name":"Maison de Serge Gainsbourg (5 bis, rue de Verneuil) · le mur aux graffitis","lat":48.8571427,"lon":2.3316551,"hook":"La Maison Gainsbourg, située à Paris, est un musée consacré à l'artiste Serge Gainsbourg.  Elle est composée de deux espaces : le 5 bis rue de Verneuil avec la maison familiale de Serge Gainsbourg entre 1969 et 1991, et le 14 rue de Verneuil avec un musée, une librairie-boutique et le bar le Gainsbarre.","along":1638.5,"pausable":false,"leg_d":533,"leg_t":427},{"id":"s5","name":"Hôtel d'York, 56 rue Jacob · signature du traité de Paris (1783)","lat":48.8562351,"lon":2.3321286,"hook":"Dans cet hôtel fut signé le traité de Paris de 1783, qui mit un terme à la guerre d'indépendance des États-Unis ; une plaque commémorative rend hommage à cet évènement.","along":1800.2,"pausable":false,"leg_d":162,"leg_t":129},{"id":"s6","name":"Maison où mourut Alphonse Daudet (rue de l'Université) · la plaque","lat":48.858275,"lon":2.326367,"hook":"No 41 : c'est ici, à son domicile parisien que meurt subitement le 16 décembre 1897, l'écrivain Alphonse Daudet, comme le signale un panneau en façade.","along":2284.9,"pausable":false,"leg_d":485,"leg_t":388},{"id":"s7","name":"Musée d'Orsay et, en face, le musée de la Légion d'honneur","lat":48.8602072,"lon":2.3256401,"hook":"Le musée d'Orsay est un musée parisien situé dans le 7e arrondissement, le long de la rive gauche de la Seine, en surplomb de la promenade Édouard-Glissant.","along":2610.8,"pausable":true,"leg_d":326,"leg_t":261},{"id":"s8","name":"Métro Solférino","lat":48.8581881,"lon":2.3232621,"hook":"Solférino est une station de la ligne 12 du métro de Paris, située dans le 7e arrondissement de Paris.","along":2928.5,"pausable":false,"leg_d":318,"leg_t":254}],"line":[[48.85213,2.33945],[48.85218,2.33932],[48.85229,2.33888],[48.85235,2.33885],[48.85238,2.33863],[48.85275,2.33714],[48.85299,2.33711],[48.85301,2.33707],[48.85303,2.33689],[48.85326,2.33604],[48.85331,2.33567],[48.85342,2.33539],[48.85384,2.33363],[48.85391,2.3336],[48.85394,2.33366],[48.85393,2.33371],[48.85411,2.33379],[48.85413,2.3338],[48.8542,2.33373],[48.85435,2.3338],[48.8544,2.33392],[48.85403,2.33543],[48.85424,2.3356],[48.8543,2.33557],[48.85439,2.33562],[48.85438,2.3357],[48.85438,2.33575],[48.8544,2.33567],[48.85441,2.33577],[48.85475,2.33604],[48.85544,2.33401],[48.85553,2.33402],[48.85652,2.33471],[48.85656,2.33466],[48.85666,2.33473],[48.85656,2.33466],[48.85655,2.3347],[48.85711,2.33508],[48.85758,2.33533],[48.85773,2.33536],[48.85767,2.33533],[48.85817,2.33325],[48.85813,2.33322],[48.85815,2.33317],[48.85821,2.33322],[48.85815,2.33317],[48.85816,2.33313],[48.8577,2.33275],[48.85767,2.33269],[48.8576,2.33267],[48.8571,2.33226],[48.85705,2.33217],[48.85719,2.33169],[48.85704,2.3322],[48.85638,2.33166],[48.85627,2.33191],[48.8562,2.3321],[48.85726,2.32927],[48.85739,2.32901],[48.85742,2.32886],[48.85769,2.32816],[48.85771,2.32809],[48.85767,2.32807],[48.85804,2.32708],[48.85827,2.32637],[48.85843,2.32588],[48.8589,2.32617],[48.85894,2.32607],[48.85899,2.32605],[48.85951,2.32634],[48.85969,2.32573],[48.85975,2.32577],[48.85997,2.32518],[48.86011,2.32504],[48.86027,2.32514],[48.86023,2.32528],[48.86035,2.32489],[48.86004,2.32457],[48.86,2.32454],[48.85999,2.32458],[48.85995,2.32457],[48.85864,2.3233],[48.85858,2.32327],[48.85853,2.3233],[48.85835,2.32309],[48.85818,2.32325]],"cum":[0.0,11.0,45.5,52.4,68.9,185.4,212.1,215.7,229.1,296.4,324.0,347.9,484.9,492.9,498.4,502.3,523.0,525.3,534.6,552.0,562.4,680.3,706.6,713.6,724.2,730.2,733.9,740.1,747.5,790.0,957.1,967.1,1087.7,1093.4,1105.6,1117.8,1120.9,1188.8,1243.9,1260.6,1267.6,1429.7,1434.6,1438.9,1446.5,1454.1,1457.2,1515.2,1520.7,1528.6,1591.5,1600.1,1638.5,1679.4,1762.4,1784.4,1800.3,2038.4,2062.3,2073.7,2133.1,2138.7,2143.3,2226.6,2284.5,2324.5,2380.6,2389.2,2394.9,2456.2,2505.1,2512.4,2561.9,2580.5,2599.7,2610.8,2642.3,2683.8,2688.8,2691.9,2696.4,2868.5,2875.5,2881.5,2906.6,2928.8],"total_d":2929,"total_t":2343,"_controle":{"points_lus":292,"points_dans_fenetre":292,"points_precis":292,"points_filtres":275,"points_dedoublonnes":211,"points_gardes":86,"longueur_m":2929,"arrets":[{"id":"s0","ecart_ligne_m":1.2,"etoile_utc":"2026-01-01T09:00:00.106000+00:00"},{"id":"s1","ecart_ligne_m":8.4,"etoile_utc":"2026-01-01T09:07:09.520000+00:00"},{"id":"s2","ecart_ligne_m":5.9,"etoile_utc":"2026-01-01T09:10:00.892000+00:00"},{"id":"s3","ecart_ligne_m":1.8,"etoile_utc":"2026-01-01T09:15:03.450000+00:00"},{"id":"s4","ecart_ligne_m":5.8,"etoile_utc":"2026-01-01T09:22:19.087000+00:00"},{"id":"s5","ecart_ligne_m":4.4,"etoile_utc":"2026-01-01T09:24:29.393000+00:00"},{"id":"s6","ecart_ligne_m":0.4,"etoile_utc":"2026-01-01T09:30:59.643000+00:00"},{"id":"s7","ecart_ligne_m":26.5,"etoile_utc":"2026-01-01T09:35:25.746000+00:00"},{"id":"s8","ecart_ligne_m":1.2,"etoile_utc":"2026-01-01T09:39:42.747000+00:00"}],"debut_utc_utilise":"2026-01-01T09:00:00+00:00","fin_utc_utilise":"2026-01-01T09:39:42.987000+00:00","latitude_reference":48.85615866438355},"note_catalogue":"Parcours homologué : marché par une ambassadrice Journey Walker, arrêt par arrêt. Textes des arrêts : Wikipédia, licence CC BY-SA 4.0."};
+/* 0.6.6 : photos des arrêts, dans l'ordre de ROUTE.stops ({f, credit, lien?} | {banniere, lignes} | null) ; rempli par fabriquer_homologues.py */
+const PHOTOS = [{"f":"photos/saint-germain-odeon-2/01.jpg","credit":"JW staff"},{"f":"photos/saint-germain-odeon-2/02.jpg","credit":"JW staff"},{"f":"photos/saint-germain-odeon-2/03.jpg","credit":"JW staff"},{"f":"photos/saint-germain-odeon-2/04.jpg","credit":"JW staff"},{"f":"photos/saint-germain-odeon-2/05.jpg","credit":"JW staff"},{"f":"photos/saint-germain-odeon-2/06.jpg","credit":"Wikimedia Commons / Mu · CC BY-SA 3.0 · Wikimedia Commons","lien":"https://commons.wikimedia.org/wiki/File:Plaque_Trait%C3%A9_de_Paris,_56_rue_Jacob,_Paris_6.jpg"},{"f":"photos/saint-germain-odeon-2/07.jpg","credit":"JW staff"},{"f":"photos/saint-germain-odeon-2/08.jpg","credit":"JW staff"},{"banniere":"Solférino","lignes":"12"}];
 const CATALOGUE = [{"ville":"Paris · 5ᵉ","nom":"Le Quartier latin, de la Mouffe à Notre-Dame","meta":"5,0 km · ~66 min de marche · 22 arrêts","ready":true,"route_id":"PAR-JW-5E-A","href":"paris-5e.html"},{"ville":"Paris · 1ᵉʳ–2ᵉ","nom":"Du Pont Neuf aux passages, par le Louvre et le Palais-Royal","meta":"4,3 km · ~57 min de marche · 17 arrêts","ready":true,"route_id":"PAR-JW-7-1","href":"paris-7-1.html"},{"ville":"Paris · 2ᵉ–9ᵉ–1ᵉʳ","nom":"Des passages à la Concorde, par l’Opéra et les Tuileries","meta":"3,9 km · ~52 min de marche · 10 arrêts","ready":true,"route_id":"PAR-JW-7-2","href":"paris-7-2.html"},{"ville":"Paris · 7ᵉ","nom":"Les Invalides, de l’École militaire au pont Alexandre-III","meta":"4,9 km · ~65 min de marche · 7 arrêts","ready":true,"route_id":"PAR-JW-9-1","href":"paris-9-1.html"},{"ville":"Paris · 7ᵉ","nom":"Vers la tour Eiffel, de la rue Cler au Champ-de-Mars","meta":"4,5 km · ~60 min de marche · 11 arrêts","ready":true,"route_id":"PAR-JW-9-2","href":"paris-9-2.html"},{"ville":"Paris · 3ᵉ–4ᵉ","nom":"Le Marais, de Pont Marie au square du Temple","meta":"5,5 km · ~73 min de marche · 21 arrêts","ready":true,"route_id":"PAR-JW-4","href":"paris-marais.html"},{"ville":"Paris · 1ᵉʳ–2ᵉ–9ᵉ","nom":"Les passages couverts, des Halles aux Grands Boulevards","meta":"3,7 km · ~50 min de marche · 16 arrêts","ready":true,"route_id":"PAR-JW-2","href":"paris-passages.html"},{"ville":"Paris · 20ᵉ","nom":"Le cimetière du Père-Lachaise, de Chopin à Piaf","meta":"4,9 km · ~65 min de marche · 24 arrêts","ready":true,"route_id":"PAR-JW-5","href":"paris-pere-lachaise.html"},{"ville":"Paris · 1ᵉʳ–4ᵉ","nom":"L’île de la Cité, de Notre-Dame au Pont-Neuf","meta":"5,1 km · ~67 min de marche · 14 arrêts","ready":true,"route_id":"PAR-JW-3","href":"paris-ile-de-la-cite.html"},{"ville":"Paris · 11ᵉ–3ᵉ","nom":"D’Oberkampf au haut Marais, le chemin d’une habitante du 11ᵉ","meta":"3,2 km · ~43 min de marche · 10 arrêts","ready":true,"route_id":"PAR-JW-17","href":"paris-haut-marais.html"},{"ville":"Paris · 18ᵉ","nom":"Montmartre, la boucle d’un habitant","meta":"3,5 km · ~47 min de marche · 19 arrêts","ready":true,"route_id":"PAR-JW-1","href":"paris-montmartre.html"},{"ville":"Paris · 6ᵉ","nom":"Saint-Germain – Odéon, côté Seine et Luxembourg","meta":"4,8 km · ~64 min de marche · 14 arrêts","ready":true,"route_id":"PAR-JW-8-1","href":"paris-8-1.html"},{"ville":"Paris · 6ᵉ–7ᵉ","nom":"Saint-Germain – Odéon, côté Saint-Germain-des-Prés","meta":"2,9 km · ~39 min de marche · 9 arrêts","ready":true,"route_id":"PAR-JW-8-2"},{"ville":"Paris · 17ᵉ","nom":"Les Batignolles, du village au parc Martin-Luther-King","meta":"3,9 km · ~52 min de marche · 10 arrêts","ready":true,"route_id":"PAR-JW-18","href":"paris-batignolles.html"},{"ville":"Paris · 8ᵉ–17ᵉ","nom":"De la Madeleine à la plaine Monceau","meta":"4,4 km · ~58 min de marche · 14 arrêts","ready":true,"route_id":"PAR-JW-19","href":"paris-madeleine-monceau.html"},{"ville":"Paris · 8ᵉ–16ᵉ","nom":"Haute couture et Champs-Élysées, de la Concorde à l’Arc de triomphe","meta":"4,6 km · ~61 min de marche · 14 arrêts","ready":true,"route_id":"PAR-JW-T2","href":"paris-haute-couture.html"},{"ville":"Paris · 4ᵉ","nom":"L’île Saint-Louis, du pont Marie au pont Saint-Louis","meta":"1,5 km · ~21 min de marche · 8 arrêts","ready":true,"route_id":"PAR-JW-29","href":"paris-ile-saint-louis.html"},{"ville":"Paris · 13ᵉ","nom":"Le 13ᵉ côté village, des Gobelins à la Butte-aux-Cailles","meta":"3,9 km · ~52 min de marche · 10 arrêts","ready":true,"route_id":"PAR-JW-26","href":"paris-13e-village.html"},{"ville":"Paris · 6ᵉ–5ᵉ","nom":"Les églises, mille ans de pierre, de Saint-Germain-des-Prés au Val-de-Grâce","meta":"3,8 km · ~51 min de marche · 7 arrêts","ready":true,"route_id":"PAR-JW-T4","href":"paris-eglises-rive-gauche.html"},{"ville":"Ottawa · Canada","nom":"Du musée au marché By","meta":"2,6 km · ~35 min de marche · 9 arrêts","ready":true,"route_id":"OTT-MUSEE-KIWEKI-PARL-BYWARD","href":"ottawa-clair.html"},{"ville":"Gatineau · Aylmer","nom":"Les arbres de Saint-Malo — marche d’essai","meta":"2,5 km · ~34 min de marche · 5 arrêts","ready":true,"route_id":"AYL-SAINT-MALO-ESSAI-01","href":"essai-aylmer.html"},{"ville":"Paris · 13ᵉ","nom":"Le street art du 13ᵉ","meta":"Marche de vérification à venir","ready":false}];
 
 /* ═══ RÉGLAGES ═══ */
@@ -287,6 +305,17 @@ const START={lat:ROUTE.line[0][0],lon:ROUTE.line[0][1]};
 let mode="cat", map=null, planMap=null, watchId=null, orientOn=false, heading=null;
 let meMarker=null, meHalo=null, lastPos=null;
 let targetIdx=0, reached=[], skipped=[], offSince=null, offShown=false, speeds=[];
+let photoIdx=-1;
+const esc=t=>String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function plaque(p){ return '<div class="plq" role="img" aria-label="Station '+esc(p.banniere)+'"><span>'+esc(p.banniere)+'</span>'+
+  (p.lignes?'<span>'+p.lignes.split(" · ").map(x=>"<i>"+esc(x)+"</i>").join("")+'</span>':"")+"</div>"; }
+function creditPhoto(p){ if(!p||!p.f) return ""; const t="Photo : "+esc(p.credit);
+  return '<span class="cred">'+(p.lien?'<a href="'+esc(p.lien)+'" target="_blank" rel="noopener">'+t+"</a>":t)+"</span>"; }
+function photoListe(i){ const p=PHOTOS[i]; if(!p) return "";
+  return p.f?'<img class="ph" src="'+esc(p.f)+'" alt="" loading="lazy">':plaque(p); }
+function photoMarche(){ if(photoIdx===targetIdx) return; photoIdx=targetIdx; const box=$("#wPhoto"), p=PHOTOS[targetIdx];
+  if(!p){ box.className="vide"; box.innerHTML=""; return; }
+  box.className=""; box.innerHTML=p.f?'<img src="'+esc(p.f)+'" alt="">'+creditPhoto(p):plaque(p); }
 let session=null, tick=null, elapsedMs=0, runSince=null, pauseSince=null;
 let dispDist=null, dispPre=null;
 
@@ -557,6 +586,7 @@ function renderWalk(c){
   dispDist=smoothD(dispDist,along);
   $("#wEyebrow").textContent=targetIdx===ROUTE.stops.length-1?"Dernier arrêt":"Prochain arrêt";
   $("#wName").textContent=(targetIdx+1)+". "+t.name;
+  photoMarche();
   $("#wDist").textContent=nearStop(c,t,pr)?"tu y es ✓":fmtD(dispDist);
   $("#wEta").textContent=fmtT(dispDist/pace());
   $("#wLeft").textContent=fmtT((dispDist+(ROUTE.total_d-t.along))/pace());
@@ -649,7 +679,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.6.5-clair80",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.6.6-clair80",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Paris · 6ᵉ–7ᵉ",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -717,7 +747,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const ul=$("#stopList");
   ROUTE.stops.forEach((s,i)=>{
     const li=document.createElement("li");
-    li.innerHTML='<span class="n">'+(i+1)+'</span><span class="tx">'+s.name+
+    li.innerHTML='<span class="n">'+(i+1)+'</span>'+photoListe(i)+'<span class="tx">'+s.name+creditPhoto(PHOTOS[i])+
       (s.pausable?'<span class="p">⏸ visite possible — mise en veille</span>':'')+'</span>'+
       '<span class="m">'+(i===0?"départ":fmtD(s.leg_d))+'</span>';
     ul.appendChild(li);

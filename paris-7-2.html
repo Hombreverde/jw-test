@@ -142,6 +142,21 @@
   .stoplist .tx{flex:1;line-height:1.3;font-weight:600}
   .stoplist .p{font-size:15px;color:var(--warn);font-weight:700;display:block;margin-top:3px}
   .stoplist .m{color:var(--dim);font-size:17px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+  /* 0.6.6 (14/11) : une photo fixe par arrêt ; les stations ont une bannière façon plaque (sans logo, police ni couleurs RATP) */
+  .stoplist li{gap:12px}
+  .ph{flex:0 0 72px;width:72px;height:72px;border-radius:10px;object-fit:cover;background:#E5E9EE;border:1px solid #C9D1DA}
+  .plq{flex:0 0 72px;width:72px;height:72px;border-radius:10px;background:#1D3A5F;color:#F4F1EA;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center;font-weight:800;font-size:12px;line-height:1.1;padding:4px;box-shadow:inset 0 0 0 3px #1D3A5F,inset 0 0 0 4px #F4F1EA}
+  .plq>span:first-child{overflow-wrap:anywhere;hyphens:auto;max-width:100%}
+  .stoplist .plq{font-size:11px}
+  .plq i{font-style:normal;display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:50%;background:#F4F1EA;color:#1D3A5F;font-size:12px;margin:0 1px}
+  .cred{display:block;font-size:13px;color:var(--dim);font-weight:500;margin-top:3px;line-height:1.3}
+  .cred a{color:var(--dim)}
+  #wPhoto{margin:0 0 10px;position:relative}
+  #wPhoto.vide{display:none}
+  #wPhoto img{display:block;width:100%;height:19dvh;max-height:170px;object-fit:cover;border-radius:12px;border:2px solid var(--line)}
+  #wPhoto .plq{width:100%;height:auto;min-height:64px;flex-direction:row;gap:12px;font-size:20px;padding:10px 14px}
+  #wPhoto .plq i{min-width:28px;height:28px;font-size:16px}
+  #wPhoto .cred{position:absolute;right:8px;bottom:6px;margin:0;padding:1px 7px;border-radius:6px;background:rgba(255,255,255,.88);font-size:12px;color:#33404C}
 
   fieldset{border:0;padding:0;margin:0 0 20px}
   legend{font-size:20px;font-weight:700;padding:0;margin-bottom:10px}
@@ -159,18 +174,18 @@
 
 <!-- ═══ 1. CATALOGUE ═══ -->
 <section id="scCat" class="screen on">
-  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.5</span></header>
+  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.6</span></header>
   <div class="scroll">
     <p class="lead">Parcours à pied, commentés, à ton rythme. Repère-les depuis ton hôtel et planifie ta journée.</p>
     <div id="catList"></div>
     <p class="note">Parcours homologué : marché par une ambassadrice Journey Walker, arrêt par arrêt. Textes des arrêts : Wikipédia, licence CC BY-SA 4.0.</p>
-    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.5 · 14 novembre 2026 · 19 circuits à Paris</p>
+    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.6 · 14 novembre 2026 · 19 circuits à Paris</p>
   </div>
 </section>
 
 <!-- ═══ 2. FICHE DU PARCOURS ═══ -->
 <section id="scPlan" class="screen">
-  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.5</span></header>
+  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.6</span></header>
   <div class="maprow"><div id="mapPlan"></div></div>
   <div class="panel">
     <p class="lead" id="planLead">—</p>
@@ -216,6 +231,7 @@
   <header><h1 id="wTitle">Parcours en cours</h1><span class="chip live" id="chipTime">0 min</span></header>
   <div class="maprow"><div id="mapHost" style="flex:1;display:flex"></div><div id="offRoute"></div></div>
   <div class="panel walk">
+    <div id="wPhoto" class="vide"></div>
     <p class="eyebrow" id="wEyebrow">Prochain arrêt</p>
     <div class="nextline"><span class="nm" id="wName">—</span><span class="dv" id="wDist">—</span></div>
     <p class="subline"><span id="wEta">—</span> de marche · <span id="wLeft">—</span> pour finir</p>
@@ -270,6 +286,8 @@
 <script>
 /* ═══ DONNÉES — injectées à la construction ═══ */
 const ROUTE = {"route_id":"PAR-JW-7-2","route_version":"1.0","name":"Paris — des passages à la Concorde","ville":"Paris · 2ᵉ–9ᵉ–1ᵉʳ","trace_source":"tracé homologué Journey Walker, marché par une ambassadrice","stops":[{"id":"s0","name":"Passage des Panoramas","lat":48.870349,"lon":2.341571,"hook":"Le passage des Panoramas est un passage couvert parisien, situé dans le 2e arrondissement, entre le boulevard Montmartre au nord et la rue Saint-Marc au sud, qui abrite la boutique Stern.","along":0.0,"pausable":false,"leg_d":0,"leg_t":0},{"id":"s1","name":"Opéra-Comique","lat":48.871203,"lon":2.337836,"hook":"Le théâtre national de l'Opéra-Comique, également appelé « salle Favart », est une salle de spectacles située place Boieldieu, dans le 2e arrondissement de Paris.","along":618.0,"pausable":false,"leg_d":618,"leg_t":494},{"id":"s2","name":"Coupole des Galeries Lafayette","lat":48.872793,"lon":2.334055,"hook":"Les Galeries Lafayette Haussmann sont un grand magasin parisien situé boulevard Haussmann dans le 9e arrondissement.","along":987.2,"pausable":false,"leg_d":369,"leg_t":295},{"id":"s3","name":"Opéra Garnier","lat":48.871844,"lon":2.330863,"hook":"L'opéra Garnier, ou palais Garnier, est un théâtre national qui a la vocation d'être une académie de musique, de chorégraphie et de poésie lyrique ; il est un élément majeur du patrimoine du 9e arrondissement de Paris et de la capitale.","along":1490.4,"pausable":true,"leg_d":503,"leg_t":403},{"id":"s4","name":"Place Vendôme","lat":48.86745,"lon":2.329511,"hook":"La place Vendôme (ainsi nommée depuis 1799, après avoir porté successivement les noms de place des Conquêtes, de place Louis-le-Grand à partir de 1699 puis de place des Piques à partir de 1792) est une place de Paris, située dans le 1er arrondissement.","along":2137.3,"pausable":false,"leg_d":647,"leg_t":518},{"id":"s5","name":"Jardin des Tuileries","lat":48.863876,"lon":2.32631,"hook":"Le jardin des Tuileries, parfois appelé jardins des Tuileries au pluriel, est un parc grillagé parisien du 1er arrondissement créé au XVIe siècle, à l'emplacement d'anciennes tuileries qui lui ont donné son nom.","along":2641.7,"pausable":true,"leg_d":504,"leg_t":404},{"id":"s6","name":"Musée de l'Orangerie","lat":48.864036,"lon":2.321902,"hook":"Le musée de l'Orangerie est un musée national français de peintures impressionnistes et postimpressionnistes, situé à Paris, plus précisément dans le jardin des Tuileries, à l'extrémité occidentale de la Terrasse du bord de la Seine, place de la Concorde.","along":3061.5,"pausable":true,"leg_d":420,"leg_t":336},{"id":"s7","name":"Jeu de Paume","lat":48.86583,"lon":2.32389,"hook":"Le Jeu de paume est un centre d'art consacré aux images du XIXe siècle à nos jours, sous toutes leurs formes (photographie, cinéma, arts numériques, installations) d'une superficie de 1 200 m2, situé à l'angle nord-ouest du jardin des Tuileries, place de la Concorde, à Paris.","along":3511.2,"pausable":false,"leg_d":450,"leg_t":360},{"id":"s8","name":"Place de la Concorde","lat":48.865633,"lon":2.321236,"hook":"La place de la Concorde, initialement appelée place Louis XV puis place de la Révolution de 1792 à 1795, qui s’étend sur 7,56 hectares, est la plus grande place de Paris.","along":3812.1,"pausable":false,"leg_d":301,"leg_t":241},{"id":"s9","name":"Hôtel de la Marine (métro Concorde)","lat":48.866176,"lon":2.322397,"hook":"L'hôtel de la Marine (initialement hôtel du Garde-Meuble de la Couronne) est un bâtiment historique, ainsi qu'un lieu d'exposition, situé au 2 place de la Concorde, dans le 8e arrondissement de Paris.","along":3931.3,"pausable":false,"leg_d":119,"leg_t":95}],"line":[[48.87038,2.34152],[48.87045,2.34154],[48.8716,2.34186],[48.87164,2.34162],[48.8716,2.34161],[48.87162,2.3415],[48.87166,2.34152],[48.87183,2.34045],[48.87183,2.33994],[48.87185,2.33989],[48.87174,2.33942],[48.87157,2.3384],[48.87077,2.33807],[48.87078,2.33803],[48.87065,2.33798],[48.87068,2.3379],[48.87072,2.33792],[48.87079,2.33749],[48.87083,2.33739],[48.87124,2.33757],[48.87142,2.33763],[48.87139,2.33736],[48.87163,2.33727],[48.87156,2.33685],[48.87246,2.33597],[48.8726,2.33526],[48.87255,2.33525],[48.87259,2.33513],[48.8727,2.3344],[48.87282,2.3336],[48.87286,2.33343],[48.87277,2.33347],[48.87274,2.33333],[48.87289,2.33327],[48.87276,2.33319],[48.87282,2.33299],[48.87293,2.33305],[48.87309,2.33176],[48.87327,2.33181],[48.87327,2.33142],[48.87333,2.33099],[48.8732,2.33084],[48.87316,2.33096],[48.873,2.33093],[48.87288,2.33102],[48.8728,2.33125],[48.87264,2.33113],[48.87185,2.33075],[48.87168,2.33097],[48.87105,2.33216],[48.87106,2.33222],[48.87077,2.33233],[48.87075,2.33221],[48.87079,2.3322],[48.87073,2.33191],[48.87069,2.33193],[48.87067,2.33181],[48.87045,2.33189],[48.87047,2.33202],[48.87027,2.33214],[48.87007,2.33185],[48.86992,2.33175],[48.86965,2.33146],[48.86966,2.33143],[48.8696,2.33137],[48.86959,2.3314],[48.86799,2.32982],[48.86791,2.32968],[48.86758,2.32935],[48.86749,2.32924],[48.86742,2.32922],[48.86729,2.32902],[48.86717,2.32891],[48.86706,2.32888],[48.8667,2.32853],[48.86672,2.32848],[48.86664,2.32839],[48.86601,2.32778],[48.86602,2.32775],[48.86546,2.32724],[48.86534,2.32753],[48.86525,2.32746],[48.86526,2.32726],[48.86511,2.3271],[48.86405,2.32634],[48.86389,2.32621],[48.86332,2.3258],[48.86391,2.32394],[48.86377,2.32384],[48.86384,2.32364],[48.8638,2.32361],[48.86376,2.32369],[48.86374,2.32367],[48.86376,2.32359],[48.86371,2.32355],[48.86385,2.32309],[48.86383,2.32299],[48.86413,2.32204],[48.86411,2.32202],[48.86388,2.32184],[48.86394,2.32167],[48.8639,2.32164],[48.8638,2.32168],[48.86379,2.3216],[48.86397,2.32158],[48.8662,2.32329],[48.86626,2.32348],[48.86622,2.32351],[48.86616,2.3234],[48.86615,2.32348],[48.86609,2.32352],[48.86594,2.32341],[48.86579,2.32386],[48.86594,2.32341],[48.86609,2.32352],[48.86615,2.32348],[48.86617,2.32339],[48.86621,2.32352],[48.86626,2.32348],[48.8662,2.32329],[48.86588,2.32305],[48.86588,2.32231],[48.86551,2.32207],[48.86569,2.32152],[48.86575,2.32132],[48.86562,2.32174],[48.86601,2.32199],[48.86601,2.32231],[48.86612,2.3223],[48.86615,2.32228]],"cum":[0.0,7.9,137.2,155.3,159.8,168.1,172.8,253.4,290.7,295.0,331.5,408.5,500.2,503.3,518.2,524.9,529.6,562.0,570.5,617.8,638.1,658.2,685.5,717.2,835.8,890.0,895.6,905.5,960.3,1020.3,1033.6,1043.9,1054.7,1071.9,1087.4,1103.5,1116.4,1212.5,1232.7,1261.3,1293.5,1311.6,1321.4,1339.2,1354.0,1373.1,1392.8,1484.5,1509.3,1620.8,1625.3,1658.4,1667.5,1671.9,1694.2,1698.9,1707.9,1732.9,1742.7,1766.5,1797.2,1815.3,1851.9,1854.4,1862.3,1864.8,2076.2,2089.7,2133.5,2146.3,2154.2,2174.7,2190.2,2202.6,2249.9,2254.2,2265.2,2348.0,2350.4,2422.8,2447.8,2459.0,2473.7,2494.0,2623.7,2643.8,2713.6,2864.7,2881.8,2898.3,2903.3,2910.6,2913.3,2919.5,2925.8,2962.9,2970.5,3047.6,3050.2,3078.9,3093.0,3097.9,3109.4,3115.3,3135.3,3411.8,3427.2,3432.2,3442.6,3448.6,3455.8,3474.3,3511.2,3548.0,3566.5,3573.7,3580.7,3591.2,3597.4,3612.9,3652.4,3706.6,3751.1,3796.0,3812.1,3846.0,3892.9,3916.3,3928.5,3932.1],"total_d":3932,"total_t":3146,"_controle":{"points_lus":316,"points_dans_fenetre":316,"points_precis":316,"points_filtres":315,"points_dedoublonnes":282,"points_gardes":130,"longueur_m":3932,"arrets":[{"id":"s0","ecart_ligne_m":5.1,"etoile_utc":"2026-01-01T09:00:00+00:00"},{"id":"s1","ecart_ligne_m":19.9,"etoile_utc":"2026-01-01T09:08:24.249000+00:00"},{"id":"s2","ecart_ligne_m":4.4,"etoile_utc":"2026-01-01T09:13:23.824000+00:00"},{"id":"s3","ecart_ligne_m":5.9,"etoile_utc":"2026-01-01T09:20:09.887000+00:00"},{"id":"s4","ecart_ligne_m":18.2,"etoile_utc":"2026-01-01T09:28:52.654000+00:00"},{"id":"s5","ecart_ligne_m":7.2,"etoile_utc":"2026-01-01T09:35:42.809000+00:00"},{"id":"s6","ecart_ligne_m":3.9,"etoile_utc":"2026-01-01T09:41:19.568000+00:00"},{"id":"s7","ecart_ligne_m":4.9,"etoile_utc":"2026-01-01T09:47:23.786000+00:00"},{"id":"s8","ecart_ligne_m":14.3,"etoile_utc":"2026-01-01T09:51:26.228000+00:00"},{"id":"s9","ecart_ligne_m":9.0,"etoile_utc":"2026-01-01T09:53:02.050000+00:00"}],"debut_utc_utilise":"2026-01-01T09:00:00+00:00","fin_utc_utilise":"2026-01-01T09:53:02.681000+00:00","latitude_reference":48.868915221518975},"note_catalogue":"Parcours homologué : marché par une ambassadrice Journey Walker, arrêt par arrêt. Textes des arrêts : Wikipédia, licence CC BY-SA 4.0."};
+/* 0.6.6 : photos des arrêts, dans l'ordre de ROUTE.stops ({f, credit, lien?} | {banniere, lignes} | null) ; rempli par fabriquer_homologues.py */
+const PHOTOS = [{"f":"photos/louvre-opera-2/01.jpg","credit":"Nicolas Vigier · CC0 · Wikimedia Commons","lien":"https://commons.wikimedia.org/wiki/File:Passage_des_Panoramas_-_5094563715.jpg"},{"f":"photos/louvre-opera-2/02.jpg","credit":"JW staff"},{"f":"photos/louvre-opera-2/03.jpg","credit":"spacejulien · CC BY 2.0 · Flickr","lien":"https://www.flickr.com/photos/8872128@N04/3127257183"},{"f":"photos/louvre-opera-2/04.jpg","credit":"JW staff"},{"f":"photos/louvre-opera-2/05.jpg","credit":"Gzen92 · CC BY-SA 4.0 · Wikimedia Commons","lien":"https://commons.wikimedia.org/wiki/File:Place_Vend%C3%B4me_-_Colonne_Vend%C3%B4me_(Paris).jpg"},{"f":"photos/louvre-opera-2/06.jpg","credit":"JW staff"},{"f":"photos/louvre-opera-2/07.jpg","credit":"JW staff"},{"f":"photos/louvre-opera-2/08.jpg","credit":"Jean-Pierre Dalbéra · CC BY 2.0 · Wikimedia Commons","lien":"https://commons.wikimedia.org/wiki/File:Le_Jeu_de_Paume,_1_place_de_la_Concorde_%C3%A0_Paris,_juillet_2021.jpg"},{"f":"photos/louvre-opera-2/09.jpg","credit":"JW staff"},{"f":"photos/louvre-opera-2/10.jpg","credit":"Guilhem Vellut from Paris, France · CC BY 2.0 · Wikimedia Commons","lien":"https://commons.wikimedia.org/wiki/File:French_flag_and_the_H%C3%B4tel_de_la_Marine,_Paris.jpg"}];
 const CATALOGUE = [{"ville":"Paris · 5ᵉ","nom":"Le Quartier latin, de la Mouffe à Notre-Dame","meta":"5,0 km · ~66 min de marche · 22 arrêts","ready":true,"route_id":"PAR-JW-5E-A","href":"paris-5e.html"},{"ville":"Paris · 1ᵉʳ–2ᵉ","nom":"Du Pont Neuf aux passages, par le Louvre et le Palais-Royal","meta":"4,3 km · ~57 min de marche · 17 arrêts","ready":true,"route_id":"PAR-JW-7-1","href":"paris-7-1.html"},{"ville":"Paris · 2ᵉ–9ᵉ–1ᵉʳ","nom":"Des passages à la Concorde, par l’Opéra et les Tuileries","meta":"3,9 km · ~52 min de marche · 10 arrêts","ready":true,"route_id":"PAR-JW-7-2"},{"ville":"Paris · 7ᵉ","nom":"Les Invalides, de l’École militaire au pont Alexandre-III","meta":"4,9 km · ~65 min de marche · 7 arrêts","ready":true,"route_id":"PAR-JW-9-1","href":"paris-9-1.html"},{"ville":"Paris · 7ᵉ","nom":"Vers la tour Eiffel, de la rue Cler au Champ-de-Mars","meta":"4,5 km · ~60 min de marche · 11 arrêts","ready":true,"route_id":"PAR-JW-9-2","href":"paris-9-2.html"},{"ville":"Paris · 3ᵉ–4ᵉ","nom":"Le Marais, de Pont Marie au square du Temple","meta":"5,5 km · ~73 min de marche · 21 arrêts","ready":true,"route_id":"PAR-JW-4","href":"paris-marais.html"},{"ville":"Paris · 1ᵉʳ–2ᵉ–9ᵉ","nom":"Les passages couverts, des Halles aux Grands Boulevards","meta":"3,7 km · ~50 min de marche · 16 arrêts","ready":true,"route_id":"PAR-JW-2","href":"paris-passages.html"},{"ville":"Paris · 20ᵉ","nom":"Le cimetière du Père-Lachaise, de Chopin à Piaf","meta":"4,9 km · ~65 min de marche · 24 arrêts","ready":true,"route_id":"PAR-JW-5","href":"paris-pere-lachaise.html"},{"ville":"Paris · 1ᵉʳ–4ᵉ","nom":"L’île de la Cité, de Notre-Dame au Pont-Neuf","meta":"5,1 km · ~67 min de marche · 14 arrêts","ready":true,"route_id":"PAR-JW-3","href":"paris-ile-de-la-cite.html"},{"ville":"Paris · 11ᵉ–3ᵉ","nom":"D’Oberkampf au haut Marais, le chemin d’une habitante du 11ᵉ","meta":"3,2 km · ~43 min de marche · 10 arrêts","ready":true,"route_id":"PAR-JW-17","href":"paris-haut-marais.html"},{"ville":"Paris · 18ᵉ","nom":"Montmartre, la boucle d’un habitant","meta":"3,5 km · ~47 min de marche · 19 arrêts","ready":true,"route_id":"PAR-JW-1","href":"paris-montmartre.html"},{"ville":"Paris · 6ᵉ","nom":"Saint-Germain – Odéon, côté Seine et Luxembourg","meta":"4,8 km · ~64 min de marche · 14 arrêts","ready":true,"route_id":"PAR-JW-8-1","href":"paris-8-1.html"},{"ville":"Paris · 6ᵉ–7ᵉ","nom":"Saint-Germain – Odéon, côté Saint-Germain-des-Prés","meta":"2,9 km · ~39 min de marche · 9 arrêts","ready":true,"route_id":"PAR-JW-8-2","href":"paris-8-2.html"},{"ville":"Paris · 17ᵉ","nom":"Les Batignolles, du village au parc Martin-Luther-King","meta":"3,9 km · ~52 min de marche · 10 arrêts","ready":true,"route_id":"PAR-JW-18","href":"paris-batignolles.html"},{"ville":"Paris · 8ᵉ–17ᵉ","nom":"De la Madeleine à la plaine Monceau","meta":"4,4 km · ~58 min de marche · 14 arrêts","ready":true,"route_id":"PAR-JW-19","href":"paris-madeleine-monceau.html"},{"ville":"Paris · 8ᵉ–16ᵉ","nom":"Haute couture et Champs-Élysées, de la Concorde à l’Arc de triomphe","meta":"4,6 km · ~61 min de marche · 14 arrêts","ready":true,"route_id":"PAR-JW-T2","href":"paris-haute-couture.html"},{"ville":"Paris · 4ᵉ","nom":"L’île Saint-Louis, du pont Marie au pont Saint-Louis","meta":"1,5 km · ~21 min de marche · 8 arrêts","ready":true,"route_id":"PAR-JW-29","href":"paris-ile-saint-louis.html"},{"ville":"Paris · 13ᵉ","nom":"Le 13ᵉ côté village, des Gobelins à la Butte-aux-Cailles","meta":"3,9 km · ~52 min de marche · 10 arrêts","ready":true,"route_id":"PAR-JW-26","href":"paris-13e-village.html"},{"ville":"Paris · 6ᵉ–5ᵉ","nom":"Les églises, mille ans de pierre, de Saint-Germain-des-Prés au Val-de-Grâce","meta":"3,8 km · ~51 min de marche · 7 arrêts","ready":true,"route_id":"PAR-JW-T4","href":"paris-eglises-rive-gauche.html"},{"ville":"Ottawa · Canada","nom":"Du musée au marché By","meta":"2,6 km · ~35 min de marche · 9 arrêts","ready":true,"route_id":"OTT-MUSEE-KIWEKI-PARL-BYWARD","href":"ottawa-clair.html"},{"ville":"Gatineau · Aylmer","nom":"Les arbres de Saint-Malo — marche d’essai","meta":"2,5 km · ~34 min de marche · 5 arrêts","ready":true,"route_id":"AYL-SAINT-MALO-ESSAI-01","href":"essai-aylmer.html"},{"ville":"Paris · 13ᵉ","nom":"Le street art du 13ᵉ","meta":"Marche de vérification à venir","ready":false}];
 
 /* ═══ RÉGLAGES ═══ */
@@ -287,6 +305,17 @@ const START={lat:ROUTE.line[0][0],lon:ROUTE.line[0][1]};
 let mode="cat", map=null, planMap=null, watchId=null, orientOn=false, heading=null;
 let meMarker=null, meHalo=null, lastPos=null;
 let targetIdx=0, reached=[], skipped=[], offSince=null, offShown=false, speeds=[];
+let photoIdx=-1;
+const esc=t=>String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function plaque(p){ return '<div class="plq" role="img" aria-label="Station '+esc(p.banniere)+'"><span>'+esc(p.banniere)+'</span>'+
+  (p.lignes?'<span>'+p.lignes.split(" · ").map(x=>"<i>"+esc(x)+"</i>").join("")+'</span>':"")+"</div>"; }
+function creditPhoto(p){ if(!p||!p.f) return ""; const t="Photo : "+esc(p.credit);
+  return '<span class="cred">'+(p.lien?'<a href="'+esc(p.lien)+'" target="_blank" rel="noopener">'+t+"</a>":t)+"</span>"; }
+function photoListe(i){ const p=PHOTOS[i]; if(!p) return "";
+  return p.f?'<img class="ph" src="'+esc(p.f)+'" alt="" loading="lazy">':plaque(p); }
+function photoMarche(){ if(photoIdx===targetIdx) return; photoIdx=targetIdx; const box=$("#wPhoto"), p=PHOTOS[targetIdx];
+  if(!p){ box.className="vide"; box.innerHTML=""; return; }
+  box.className=""; box.innerHTML=p.f?'<img src="'+esc(p.f)+'" alt="">'+creditPhoto(p):plaque(p); }
 let session=null, tick=null, elapsedMs=0, runSince=null, pauseSince=null;
 let dispDist=null, dispPre=null;
 
@@ -557,6 +586,7 @@ function renderWalk(c){
   dispDist=smoothD(dispDist,along);
   $("#wEyebrow").textContent=targetIdx===ROUTE.stops.length-1?"Dernier arrêt":"Prochain arrêt";
   $("#wName").textContent=(targetIdx+1)+". "+t.name;
+  photoMarche();
   $("#wDist").textContent=nearStop(c,t,pr)?"tu y es ✓":fmtD(dispDist);
   $("#wEta").textContent=fmtT(dispDist/pace());
   $("#wLeft").textContent=fmtT((dispDist+(ROUTE.total_d-t.along))/pace());
@@ -649,7 +679,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.6.5-clair80",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.6.6-clair80",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Paris · 2ᵉ–9ᵉ–1ᵉʳ",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -717,7 +747,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const ul=$("#stopList");
   ROUTE.stops.forEach((s,i)=>{
     const li=document.createElement("li");
-    li.innerHTML='<span class="n">'+(i+1)+'</span><span class="tx">'+s.name+
+    li.innerHTML='<span class="n">'+(i+1)+'</span>'+photoListe(i)+'<span class="tx">'+s.name+creditPhoto(PHOTOS[i])+
       (s.pausable?'<span class="p">⏸ visite possible — mise en veille</span>':'')+'</span>'+
       '<span class="m">'+(i===0?"départ":fmtD(s.leg_d))+'</span>';
     ul.appendChild(li);
