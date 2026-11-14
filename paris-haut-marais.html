@@ -309,13 +309,13 @@ let photoIdx=-1;
 const esc=t=>String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function plaque(p){ return '<div class="plq" role="img" aria-label="Station '+esc(p.banniere)+'"><span>'+esc(p.banniere)+'</span>'+
   (p.lignes?'<span>'+p.lignes.split(" · ").map(x=>"<i>"+esc(x)+"</i>").join("")+'</span>':"")+"</div>"; }
-function creditPhoto(p){ if(!p||!p.f) return ""; const t="Photo : "+esc(p.credit);
+function creditPhoto(p){ if(!p||!p.f) return ""; const t=(p.illus?"Illustration : ":"Photo : ")+esc(p.credit);
   return '<span class="cred">'+(p.lien?'<a href="'+esc(p.lien)+'" target="_blank" rel="noopener">'+t+"</a>":t)+"</span>"; }
 function photoListe(i){ const p=PHOTOS[i]; if(!p) return "";
   return p.f?'<img class="ph" src="'+esc(p.f)+'" alt="" loading="lazy">':plaque(p); }
 function photoMarche(){ if(photoIdx===targetIdx) return; photoIdx=targetIdx; const box=$("#wPhoto"), p=PHOTOS[targetIdx];
   if(!p){ box.className="vide"; box.innerHTML=""; return; }
-  box.className=""; box.innerHTML=p.f?'<img src="'+esc(p.f)+'" alt="">'+creditPhoto(p):plaque(p); }
+  box.className=""; box.innerHTML=p.f?'<img src="'+esc(p.f)+'" alt="">'+(p.illus?"":creditPhoto(p)):plaque(p); }
 let session=null, tick=null, elapsedMs=0, runSince=null, pauseSince=null;
 let dispDist=null, dispPre=null;
 
