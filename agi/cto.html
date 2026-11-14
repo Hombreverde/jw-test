@@ -16,9 +16,9 @@
   --encre: #1E3D2F;
   --vert: #2F6B4F;
   --or: #B8862A;
-  --ocre: #A5622A;
+  --ocre: #965720;
   --gris: #55615A;
-  --bord: #CFC5B0;
+  --bord: #7A857D;
   --display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --texte: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
   color-scheme: light;
@@ -84,9 +84,11 @@ input:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visib
 
 .liste { display: flex; flex-direction: column; gap: 0.5rem; }
 .liste .ligne { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); align-items: center; gap: 0.4rem; }
-.liste .num { font-family: var(--display); color: var(--or); font-weight: 700; font-variant-numeric: tabular-nums; }
+.liste .num { font-family: var(--display); color: var(--vert); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.case { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: 0.6rem; align-items: start; font-weight: 400; cursor: pointer; }
+.case { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: 0.6rem; align-items: start; font-weight: 400; cursor: pointer; min-height: 44px; padding-block: 6px; }
+[aria-invalid="true"] { border-color: #9A3412 !important; border-width: 2px !important; }
+#reponses-export { min-height: 16rem; font-size: 16px; color: var(--encre); background: var(--papier); }
 .case input { width: 1.25rem; height: 1.25rem; margin: 0.15rem 0 0; accent-color: var(--vert); }
 
 .vie-privee { font-size: 0.92rem; color: var(--gris); background: var(--papier-fonce); border-radius: 8px; padding: 0.8rem 0.9rem; }
@@ -125,8 +127,8 @@ button {
       <div class="champ"><label for="courriel">Courriel <span class="req">*</span></label><input id="courriel" name="courriel" type="email" autocomplete="email" inputmode="email" required></div>
       <div class="champ"><label for="lien">LinkedIn ou GitHub <span class="aide">(facultatif)</span></label><input id="lien" name="lien" type="url" inputmode="url" placeholder="https://"></div>
       <div class="champ"><label for="occupation">Votre occupation actuelle <span class="req">*</span></label><input id="occupation" name="occupation" type="text" required></div>
-      <div class="champ"><label for="langues">Quelles langues parlez-vous ? <span class="req">*</span></label><input id="langues" name="langues" type="text" placeholder="Ex. : français (langue maternelle), anglais (courant), espagnol (notions)" required></div>
-      <div class="champ"><label for="lieu">Où vivez-vous, et pourriez-vous travailler depuis Paris ? <span class="req">*</span></label><input id="lieu" name="lieu" type="text" required></div>
+      <div class="champ"><label for="langues">Quelles langues parlez-vous ? <span class="req">*</span></label><input id="langues" name="langues" type="text" placeholder="Ex. : français (courant), anglais (professionnel), espagnol (notions)" required></div>
+      <div class="champ"><label for="lieu">Pourriez-vous travailler depuis Paris ? Précisez les modalités possibles. <span class="req">*</span></label><input id="lieu" name="lieu" type="text" placeholder="Ex. : oui, sur place ; ou à distance avec deux jours par semaine à Paris" required></div>
       <div class="champ">
         <span class="question" id="q-dispo">À partir de quand, et à quel rythme, pourriez-vous vous consacrer à JW ? <span class="req">*</span></span>
         <div class="puces" role="radiogroup" aria-labelledby="q-dispo">
@@ -173,11 +175,12 @@ button {
         <input id="essayer" name="essayer" type="url" inputmode="url" placeholder="https://">
       </div>
       <div class="champ">
-        <span class="question" id="q-societes">Deux ou trois sociétés pour lesquelles vous avez travaillé, ou auxquelles vous avez contribué <span class="req">*</span></span>
+        <span class="question" id="q-societes">Deux ou trois sociétés ou projets auxquels vous avez contribué <span class="req">*</span></span>
+        <span class="aide">Un projet libre, associatif ou personnel compte aussi. Écrivez « Sans objet » si besoin.</span>
         <div class="liste" role="group" aria-labelledby="q-societes">
-          <div class="ligne"><span class="num">1</span><input id="societe1" name="societe1" type="text" aria-label="Société 1" required></div>
-          <div class="ligne"><span class="num">2</span><input id="societe2" name="societe2" type="text" aria-label="Société 2" required></div>
-          <div class="ligne"><span class="num">3</span><input id="societe3" name="societe3" type="text" aria-label="Société 3, facultatif" placeholder="facultatif"></div>
+          <div class="ligne"><span class="num">1</span><input id="societe1" name="societe1" type="text" aria-label="Société ou projet 1" required></div>
+          <div class="ligne"><span class="num">2</span><input id="societe2" name="societe2" type="text" aria-label="Société ou projet 2" required></div>
+          <div class="ligne"><span class="num">3</span><input id="societe3" name="societe3" type="text" aria-label="Société ou projet 3, facultatif" placeholder="facultatif"></div>
         </div>
       </div>
     </fieldset>
@@ -211,8 +214,8 @@ button {
         </div>
       </div>
       <div class="champ">
-        <label for="marche">Votre plus longue marche <span class="aide">(facultatif)</span></label>
-        <input id="marche" name="marche" type="text" placeholder="Où, combien de kilomètres, avec qui…">
+        <label for="marche">La marche qui vous a le plus marqué <span class="aide">(facultatif)</span></label>
+        <input id="marche" name="marche" type="text" placeholder="Où, quand, avec qui…">
       </div>
     </fieldset>
 
@@ -230,19 +233,23 @@ button {
       <label class="case" for="vivier"><input id="vivier" name="vivier" type="checkbox"><span>J'accepte que Journey Walker garde ma candidature 12 mois, pour me recontacter si un autre poste s'ouvre.</span></label>
     </fieldset>
 
-    <p class="vie-privee">Vos réponses sont gardées sur ce téléphone le temps de remplir le questionnaire. Elles ne partent que lorsque vous envoyez le courriel. Journey Walker ne s'en sert que pour ce recrutement, et ne les garde 12 mois que si vous cochez la case ci-dessus. Pour les faire effacer, il suffit de nous l'écrire.</p>
+    <p class="vie-privee">Ce navigateur garde un brouillon de vos réponses pendant 24 heures après votre dernière modification ; le bouton « Effacer mon brouillon » le supprime. Vos réponses ne parviennent à Journey Walker que si vous envoyez le courriel depuis votre messagerie. Journey Walker ne s'en sert que pour ce recrutement, et ne les garde 12 mois que si vous cochez la case ci-dessus. Pour les faire effacer, il suffit de nous l'écrire.</p>
 
     <p class="erreur" id="erreur" role="alert" hidden></p>
 
     <div class="actions">
       <button class="principal" type="submit" id="preparer">Préparer mon courriel</button>
       <button class="second" type="button" id="copier">Copier mes réponses</button>
+      <button class="second" type="button" id="effacer">Effacer mon brouillon</button>
     </div>
+    <p class="aide" id="statut" role="status" aria-live="polite"></p>
 
     <div class="apres" id="apres" hidden>
       <strong>Il reste à appuyer sur Envoyer.</strong>
-      <p>Votre messagerie devrait s'ouvrir avec vos réponses déjà écrites. Si rien ne s'ouvre, copiez vos réponses et envoyez-les à :</p>
-      <p class="adresse">journeywalkerapp@gmail.com</p>
+      <p>Votre candidature n'est envoyée qu'après votre clic sur Envoyer dans votre messagerie. Si le courriel ne s'ouvre pas ou si des réponses manquent, copiez le texte ci-dessous dans un nouveau message adressé à :</p>
+      <p class="adresse"><a href="mailto:journeywalkerapp@gmail.com">journeywalkerapp@gmail.com</a></p>
+      <label for="reponses-export">Vos réponses à copier</label>
+      <textarea id="reponses-export" readonly rows="10"></textarea>
     </div>
   </form>
 </main>
@@ -264,19 +271,26 @@ button {
   }
   function radio(nom) { var r = f.querySelector('input[name=' + nom + ']:checked'); return r ? r.value : ''; }
 
+  var DUREE = 24 * 3600 * 1000;
+  var statut = document.getElementById('statut');
+  var exportZone = document.getElementById('reponses-export');
+
   function lire() {
     var d = {};
-    f.querySelectorAll('input[type=text], input[type=email], input[type=url], textarea').forEach(function (el) { d[el.id] = el.value.trim(); });
+    f.querySelectorAll('input[type=text], input[type=email], input[type=url], textarea:not([readonly])').forEach(function (el) { d[el.id] = el.value.trim(); });
     d.competences = [].map.call(f.querySelectorAll('input[name=competences]:checked'), function (c) { return c.value; });
     d.dispo = radio('dispo');
     d.source = radio('source');
     d.vivier = document.getElementById('vivier').checked;
     return d;
   }
-  function garder() { try { localStorage.setItem(CLE, JSON.stringify(lire())); } catch (e) {} }
+  function garder() { try { localStorage.setItem(CLE, JSON.stringify({ t: Date.now(), d: lire() })); } catch (e) {} }
+  function oublier() { try { localStorage.removeItem(CLE); } catch (e) {} }
   function reprendre() {
-    var d; try { d = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { d = null; }
-    if (!d) return;
+    var o; try { o = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { o = null; }
+    if (!o) return;
+    if (!o.t || !o.d || Date.now() - o.t > DUREE) { oublier(); return; }   // brouillon de plus de 24 h, ou d'un ancien format : effacé
+    var d = o.d;
     Object.keys(d).forEach(function (k) { var el = document.getElementById(k); if (el && el.type !== 'checkbox' && typeof d[k] === 'string') el.value = d[k]; });
     (d.competences || []).forEach(function (v) {
       f.querySelectorAll('input[name=competences]').forEach(function (c) { if (c.value === v) c.checked = true; });
@@ -299,19 +313,19 @@ button {
       'LinkedIn ou GitHub : ' + (d.lien || '—'),
       'Occupation actuelle : ' + d.occupation,
       'Langues : ' + d.langues,
-      'Lieu de vie, travail depuis Paris : ' + d.lieu,
+      'Travail depuis Paris : ' + d.lieu,
       'Disponibilité : ' + dispo, '',
       'En une phrase :', d.phrase, '',
       'Champs de compétence : ' + comp.join(', '), '',
       'Le projet dont je suis le plus fier :', d.projet, '',
       'Quelque chose à essayer : ' + (d.essayer || '—'), '',
-      'Sociétés : ' + soc.join(' ; '), '',
+      'Sociétés ou projets : ' + soc.join(' ; '), '',
       'Après avoir essayé un circuit JW, ce que je changerais en premier :', d.circuit, '',
       'Les agents IA, ce que je garderais et ce que je reprendrais à la main :', d.agents, '',
       'Un désaccord, et comment il s\'est terminé :', d.desaccord, '',
       'Quatre qualités pour être CTO de Journey Walker :',
       '1. ' + d.qualite1, '2. ' + d.qualite2, '3. ' + d.qualite3, '4. ' + d.qualite4, '',
-      'Ma plus longue marche : ' + (d.marche || '—'),
+      'La marche qui m\'a le plus marqué : ' + (d.marche || '—'),
       'Comment j\'ai connu JW : ' + (d.source || '—'),
       'Garder ma candidature 12 mois : ' + (d.vivier ? 'oui' : 'non'), '',
       '(Questionnaire de la carte AGI — À Gauche, Ici)'
@@ -320,8 +334,8 @@ button {
 
   function manque(d) {
     var champs = [['prenom', 'votre prénom'], ['nom', 'votre nom'], ['courriel', 'votre courriel'], ['occupation', 'votre occupation actuelle'],
-      ['langues', 'les langues que vous parlez'], ['lieu', 'où vous vivez'], ['phrase', 'votre phrase'], ['projet', 'votre projet'],
-      ['societe1', 'une première société'], ['societe2', 'une deuxième société'],
+      ['langues', 'les langues que vous parlez'], ['lieu', 'votre réponse sur le travail depuis Paris'], ['phrase', 'votre phrase'], ['projet', 'votre projet'],
+      ['societe1', 'une première société ou un premier projet'], ['societe2', 'une deuxième société ou un deuxième projet (ou « Sans objet »)'],
       ['circuit', 'ce que vous changeriez dans JW'], ['agents', 'votre réponse sur les agents IA'], ['desaccord', 'le récit d\'un désaccord'],
       ['qualite1', 'la qualité 1'], ['qualite2', 'la qualité 2'], ['qualite3', 'la qualité 3'], ['qualite4', 'la qualité 4']];
     for (var i = 0; i < champs.length; i++) { if (!d[champs[i][0]]) return champs[i]; }
@@ -332,30 +346,54 @@ button {
     return null;
   }
 
+  function montrer(t) {
+    exportZone.value = t;
+    document.getElementById('apres').hidden = false;
+  }
   function copier(d) {
     var t = texte(d);
-    var b = document.getElementById('copier');
-    var fini = function () { b.textContent = 'Réponses copiées'; setTimeout(function () { b.textContent = 'Copier mes réponses'; }, 2000); };
-    try { navigator.clipboard.writeText(t).then(fini, function () { b.textContent = 'Copie impossible : sélectionnez le texte'; }); }
-    catch (e) { b.textContent = 'Copie impossible : sélectionnez le texte'; }
+    montrer(t);
+    var echec = function () {
+      statut.textContent = 'La copie automatique n\'a pas marché : sélectionnez le texte dans la case ci-dessous.';
+      exportZone.focus(); exportZone.select();
+    };
+    try { navigator.clipboard.writeText(t).then(function () { statut.textContent = 'Réponses copiées.'; }, echec); }
+    catch (e) { echec(); }
+  }
+  function marquer(el) {
+    if (!el) return;
+    el.setAttribute('aria-invalid', 'true');
+    var db = el.getAttribute('aria-describedby') || '';
+    if (!/(^|\s)erreur(\s|$)/.test(db)) el.setAttribute('aria-describedby', (db + ' erreur').trim());
+    el.focus();
   }
 
-  f.addEventListener('input', function () { majCompte(); garder(); });
+  f.addEventListener('input', function (ev) {
+    if (ev.target && ev.target.removeAttribute) ev.target.removeAttribute('aria-invalid');
+    majCompte(); garder();
+  });
   f.addEventListener('change', garder);
   document.getElementById('copier').addEventListener('click', function () { copier(lire()); });
+  document.getElementById('effacer').addEventListener('click', function () {
+    f.reset(); oublier(); majCompte();
+    exportZone.value = '';
+    document.getElementById('apres').hidden = true;
+    erreur.hidden = true;
+    f.querySelectorAll('[aria-invalid]').forEach(function (el) { el.removeAttribute('aria-invalid'); });
+    statut.textContent = 'Brouillon effacé.';
+  });
   f.addEventListener('submit', function (ev) {
     ev.preventDefault();
     var d = lire(), m = manque(d);
     if (m) {
       erreur.textContent = 'Il manque ' + m[1] + '.';
       erreur.hidden = false;
-      var el = m[0] ? document.getElementById(m[0]) : f.querySelector(m[2]);
-      if (el) el.focus();
+      marquer(m[0] ? document.getElementById(m[0]) : f.querySelector(m[2]));
       return;
     }
     erreur.hidden = true;
     var sujet = 'Candidature CTO — ' + d.prenom + ' ' + d.nom;
-    document.getElementById('apres').hidden = false;
+    montrer(texte(d));
     location.href = 'mailto:' + DEST + '?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(texte(d));
   });
 

@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="AGI, À Gauche, Ici. Journey Walker : des circuits à pied dans Paris, tracés par ceux qui l'habitent.">
+<meta name="description" content="AGI, À Gauche, Ici. Journey Walker : des circuits à pied dans Paris, tracés par ceux qui l’habitent.">
 <meta property="og:title" content="AGI — À Gauche, Ici">
-<meta property="og:description" content="Des circuits à pied dans Paris, tracés par ceux qui l'habitent. Et JW cherche son ou sa CTO co-fondateur·rice.">
+<meta property="og:description" content="Des circuits à pied dans Paris, tracés par ceux qui l’habitent. Et JW cherche son ou sa CTO co-fondateur·rice.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://hombreverde.github.io/jw-test/agi/">
 <link rel="icon" type="image/png" href="../jw-icon-180.png">
@@ -20,7 +20,7 @@
   --encre: #1E3D2F;
   --vert: #2F6B4F;
   --or: #B8862A;
-  --ocre: #A5622A;
+  --ocre: #965720;
   --gris: #55615A;
   --display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --texte: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
@@ -62,6 +62,8 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--ocre); outline-
 .chute .sigle b { color: var(--ocre); font-weight: 700; }
 .chute svg { width: 100%; height: auto; display: block; }
 .chute .lead { font-size: 1.2rem; line-height: 1.5; }
+.chute .rejoindre { display: flex; flex-wrap: wrap; align-items: center; gap: 0 0.4rem; min-height: 44px; font-weight: 600; color: var(--vert); }
+.chute .rejoindre a { display: inline-flex; align-items: center; min-height: 44px; }
 
 /* Sections */
 section { display: flex; flex-direction: column; gap: 0.9rem; }
@@ -123,7 +125,7 @@ button.copier {
   border: 1px solid var(--vert);
   border-radius: 999px;
   padding: 0.35rem 0.85rem;
-  min-height: 36px;
+  min-height: 44px;
   cursor: pointer;
 }
 button.copier:hover { background: var(--vert); color: var(--papier); }
@@ -154,6 +156,7 @@ footer .devise { font-family: var(--display); font-style: italic; font-size: 1.0
       <circle cx="300" cy="62" r="6" fill="#A5622A"></circle>
     </svg>
     <p class="lead">L'intelligence générale qui nous intéresse est celle des gens qui vivent à Paris. Ils savent par où passer. Nous en faisons des circuits à pied.</p>
+    <p class="rejoindre">Vous cherchez à rejoindre JW ? <a href="#titre-annonce">Voir l'annonce CTO</a></p>
   </div>
 
   <section aria-labelledby="titre-jw">
