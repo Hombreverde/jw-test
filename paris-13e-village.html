@@ -159,18 +159,18 @@
 
 <!-- ═══ 1. CATALOGUE ═══ -->
 <section id="scCat" class="screen on">
-  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.4</span></header>
+  <header><h1>Promenades — choisis ton parcours</h1><span class="chip">v0.6.5</span></header>
   <div class="scroll">
     <p class="lead">Parcours à pied, commentés, à ton rythme. Repère-les depuis ton hôtel et planifie ta journée.</p>
     <div id="catList"></div>
     <p class="note">Parcours homologué : marché par une ambassadrice Journey Walker, arrêt par arrêt. Textes des arrêts : Wikipédia, licence CC BY-SA 4.0.</p>
-    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.4 · 13 novembre 2026 · 19 circuits à Paris</p>
+    <p class="note" style="font-weight:700;color:#0B3D91">Version claire 80 ans — v0.6.5 · 14 novembre 2026 · 19 circuits à Paris</p>
   </div>
 </section>
 
 <!-- ═══ 2. FICHE DU PARCOURS ═══ -->
 <section id="scPlan" class="screen">
-  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.4</span></header>
+  <header><h1 id="planTitle">—</h1><span class="chip">v0.6.5</span></header>
   <div class="maprow"><div id="mapPlan"></div></div>
   <div class="panel">
     <p class="lead" id="planLead">—</p>
@@ -649,7 +649,7 @@ function startSession(){
   const t0=Date.now(); runSince=t0; elapsedMs=0;
   session={session_id:"JWAPP-"+t0,consent_ref:"OWNER_SELF_TEST",
     route_id:ROUTE.route_id,route_version:ROUTE.route_version,
-    app_version:"jw-app-prototype-0.6.4-clair80",schema_version:"0.2",device_class:"ios",
+    app_version:"jw-app-prototype-0.6.5-clair80",schema_version:"0.2",device_class:"ios",
     started_at:new Date(t0).toISOString(),ended_at:null,end_reason:null,
     start_zone_generic:"Paris · 13ᵉ",compass_enabled:orientOn,
     samples:[],events:[],usage_feedback:null,user_agent:navigator.userAgent};
@@ -726,6 +726,10 @@ document.addEventListener("DOMContentLoaded",()=>{
 
   if(!initMaps()) return;
   offerRecovery();
+  // 0.6.5 (14/11) : lien direct vers un parcours (…/paris-montmartre.html?parcours ou #parcours) : la fiche du parcours, pas le catalogue,
+  // sauf s'il reste une marche non terminée à récupérer (elle s'affiche sur le catalogue).
+  if((/[?&]parcours(=|&|$)/.test(location.search)||location.hash==="#parcours")&&!document.querySelector("#scCat .warnbox")){
+    show("scPlan"); setTimeout(cadrerPlan,110); }
 
   $("#btnStops").onclick=()=>show("scStops");
   $("#btnBackPlan").onclick=()=>{ show("scPlan"); setTimeout(cadrerPlan,110); };
