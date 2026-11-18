@@ -26,11 +26,17 @@
   .msg{font-size:15px;margin:8px 0 0}
   .msg.ok{color:var(--ok)} .msg.err{color:var(--warn)}
   .note{color:var(--dim);font-size:14px;margin-top:24px}
+  .lots{display:grid;gap:10px;margin-top:6px}
+  .aide{font-size:15px;margin:6px 0 10px;color:var(--ink)}
+  details{margin-top:12px;font-size:15px}
+  summary{cursor:pointer;color:var(--acc);font-weight:600;min-height:32px}
+  .dl{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .dl a{display:inline-block;padding:8px 12px;border:1px solid var(--line);border-radius:10px;color:var(--acc);text-decoration:none;background:#fff}
 </style>
 </head>
 <body>
 <header>
-  <h1>Mes photos gardées <span class="chip">v0.1</span></h1>
+  <h1>Mes photos gardées <span class="chip">v0.2</span></h1>
   <p>Les photos 📷 prises dans le Cockpit marcheur, encore gardées sur ce téléphone.</p>
 </header>
 
@@ -42,7 +48,12 @@ Ouvre-la dans le même navigateur que le Cockpit (Google Chrome).</p>
 
 <script>
 /* v0.1 (10/11/2026) — lit la base IndexedDB « jw_cockpit_photos » du Cockpit 0.4.8 (clés « CODE/Pnn »)
-   et rend chaque marche par la feuille de partage (Photos, AirDrop, Fichiers). Lecture seule. */
+   et rend chaque marche par la feuille de partage (Photos, AirDrop, Fichiers). Lecture seule.
+   v0.2 (18/11/2026) — PAR LOTS. Chrome refuse de partager plus de 10 fichiers ou plus de 50 Mio d'un coup
+   (navigator_share.cc : kMaxSharedFileCount = 10, kMaxSharedFileBytes = 50 Mio ; NotAllowedError
+   « Permission denied », alors que canShare() répond oui). Marche JW-OTT-AEPY du 17/11, Samsung d'Éric :
+   15 photos refusées. On partage donc par lots de 10 au plus et 45 Mio au plus, et l'on offre en dernier
+   recours un téléchargement photo par photo. Toujours en lecture seule : rien n'est effacé. */
 const PHOTO_DB="jw_cockpit_photos",PHOTO_STORE="photo";
 const $=s=>document.querySelector(s);
 function lireTout(){return new Promise((res,rej)=>{
@@ -56,6 +67,11 @@ function lireTout(){return new Promise((res,rej)=>{
     tx.oncomplete=()=>{db.close();res(out);};tx.onerror=()=>{db.close();rej(tx.error);};};
 });}
 function mo(n){return (n/1048576).toLocaleString("fr-FR",{maximumFractionDigits:1})+" Mo";}
+const LOT_MAX=10,LOT_OCTETS=45*1048576;
+function enLots(files){const lots=[];let cur=[],oct=0;
+  files.forEach(f=>{if(cur.length&&(cur.length>=LOT_MAX||oct+f.size>LOT_OCTETS)){lots.push(cur);cur=[];oct=0;}cur.push(f);oct+=f.size;});
+  if(cur.length)lots.push(cur);return lots;}
+function numero(f){const m=/_P(\d+)\.jpg$/.exec(f.name);return m?Number(m[1]):0;}
 /* iOS n'ouvre la feuille de partage qu'en réponse directe à un toucher : les fichiers sont prêts avant. */
 function carte(code,items){
   const files=items.map(x=>new File([x.blob],code+"_"+x.key.split("/")[1]+".jpg",{type:"image/jpeg"}));
@@ -68,24 +84,42 @@ function carte(code,items){
   items.slice(0,12).forEach(x=>{const i=document.createElement("img");i.alt=x.key;i.loading="lazy";i.src=URL.createObjectURL(x.blob);g.appendChild(i);});
   box.appendChild(g);
   if(items.length>12){const p=document.createElement("p");p.className="meta";p.textContent="… et "+(items.length-12)+" autres.";box.appendChild(p);}
-  const b=document.createElement("button");
-  b.textContent=items.length>1?"📷 Enregistrer les "+items.length+" photos":"📷 Enregistrer la photo";
+  const aide=document.createElement("p");aide.className="aide";
+  aide.textContent="Dans la feuille qui s'ouvre, choisis Google Drive ou Gmail (vers JW), ou AirDrop sur iPhone. "+
+    "Évite WhatsApp et « Enregistrer … images » : ils effacent l'heure et le lieu des photos.";
+  box.appendChild(aide);
+  const lots=enLots(files),zone=document.createElement("div");zone.className="lots";
   const t=document.createElement("p");t.className="msg";
-  b.onclick=async()=>{
-    t.className="msg";t.textContent="";
-    try{
-      if(!(navigator.canShare&&navigator.canShare({files})))throw new Error("partage indisponible sur ce navigateur");
-      b.disabled=true;
-      await navigator.share({files,title:"Mes photos — "+code});
-      t.className="msg ok";
-      t.textContent="Choisis « Enregistrer "+files.length+" images » pour les ranger dans Photos, ou AirDrop pour les envoyer. Elles restent aussi gardées ici.";
-    }catch(e){
-      t.className="msg err";
-      t.textContent=e&&e.name==="AbortError"?"Partage annulé : les photos restent gardées ici. Touche le bouton pour réessayer.":
-        "Le partage n'a pas marché ("+(e&&e.message||e)+"). Les photos restent gardées ici.";
-    }finally{b.disabled=false;}
-  };
-  box.appendChild(b);box.appendChild(t);
+  lots.forEach((lot,k)=>{
+    const b=document.createElement("button");
+    const de=numero(lot[0]),a=numero(lot[lot.length-1]);
+    b.textContent=lots.length===1?(lot.length>1?"📷 Envoyer les "+lot.length+" photos":"📷 Envoyer la photo"):
+      "📷 Envoyer les photos "+de+" à "+a+" ("+lot.length+")";
+    b.onclick=async()=>{
+      t.className="msg";t.textContent="";
+      try{
+        if(!(navigator.canShare&&navigator.canShare({files:lot})))throw new Error("partage indisponible sur ce navigateur");
+        b.disabled=true;
+        await navigator.share({files:lot,title:"Mes photos — "+code+(lots.length>1?" ("+de+" à "+a+")":"")});
+        t.className="msg ok";
+        b.textContent="✓ Photos "+de+" à "+a+" envoyées · renvoyer";
+        t.textContent=lots.length>1&&k<lots.length-1?"Lot envoyé. Touche maintenant le bouton suivant.":"C'est envoyé. Les photos restent aussi gardées ici.";
+      }catch(e){
+        t.className="msg err";
+        t.textContent=e&&e.name==="AbortError"?"Partage annulé : les photos restent gardées ici. Touche le bouton pour réessayer.":
+          "Le partage n'a pas marché ("+(e&&e.message||e)+"). Les photos restent gardées ici : essaie « Télécharger une par une » plus bas.";
+      }finally{b.disabled=false;}
+    };
+    zone.appendChild(b);
+  });
+  box.appendChild(zone);box.appendChild(t);
+  const d=document.createElement("details");
+  const su=document.createElement("summary");su.textContent="Télécharger une par une (si l'envoi échoue)";d.appendChild(su);
+  const ex=document.createElement("p");ex.className="meta";
+  ex.textContent="Chaque photo va dans « Téléchargements » sur ce téléphone, avec son heure et son lieu. Envoie-les ensuite à JW.";d.appendChild(ex);
+  const dl=document.createElement("div");dl.className="dl";
+  files.forEach(f=>{const l=document.createElement("a");l.href=URL.createObjectURL(f);l.download=f.name;l.textContent="⬇ P"+String(numero(f)).padStart(2,"0");dl.appendChild(l);});
+  d.appendChild(dl);box.appendChild(d);
   return box;
 }
 (async()=>{
