@@ -36,7 +36,7 @@
 </head>
 <body>
 <header>
-  <h1>Mes photos gardées <span class="chip">v0.2</span></h1>
+  <h1>Mes photos gardées <span class="chip">v0.3</span></h1>
   <p>Les photos 📷 prises dans le Cockpit marcheur, encore gardées sur ce téléphone.</p>
 </header>
 
@@ -53,7 +53,9 @@ Ouvre-la dans le même navigateur que le Cockpit (Google Chrome).</p>
    (navigator_share.cc : kMaxSharedFileCount = 10, kMaxSharedFileBytes = 50 Mio ; NotAllowedError
    « Permission denied », alors que canShare() répond oui). Marche JW-OTT-AEPY du 17/11, Samsung d'Éric :
    15 photos refusées. On partage donc par lots de 10 au plus et 45 Mio au plus, et l'on offre en dernier
-   recours un téléchargement photo par photo. Toujours en lecture seule : rien n'est effacé. */
+   recours un téléchargement photo par photo. Toujours en lecture seule : rien n'est effacé.
+   v0.3 (18/11/2026, audit Codex S02-S03) : un fichier seul de plus de 45 Mio n'entre dans aucun lot (téléchargement
+   seulement) ; plus de « envoyées » : la page ne voit pas la destination, elle demande de vérifier. */
 const PHOTO_DB="jw_cockpit_photos",PHOTO_STORE="photo";
 const $=s=>document.querySelector(s);
 function lireTout(){return new Promise((res,rej)=>{
@@ -69,7 +71,7 @@ function lireTout(){return new Promise((res,rej)=>{
 function mo(n){return (n/1048576).toLocaleString("fr-FR",{maximumFractionDigits:1})+" Mo";}
 const LOT_MAX=10,LOT_OCTETS=45*1048576;
 function enLots(files){const lots=[];let cur=[],oct=0;
-  files.forEach(f=>{if(cur.length&&(cur.length>=LOT_MAX||oct+f.size>LOT_OCTETS)){lots.push(cur);cur=[];oct=0;}cur.push(f);oct+=f.size;});
+  files.forEach(f=>{if(f.size>LOT_OCTETS)return;if(cur.length&&(cur.length>=LOT_MAX||oct+f.size>LOT_OCTETS)){lots.push(cur);cur=[];oct=0;}cur.push(f);oct+=f.size;});
   if(cur.length)lots.push(cur);return lots;}
 function numero(f){const m=/_P(\d+)\.jpg$/.exec(f.name);return m?Number(m[1]):0;}
 /* iOS n'ouvre la feuille de partage qu'en réponse directe à un toucher : les fichiers sont prêts avant. */
@@ -102,8 +104,8 @@ function carte(code,items){
         b.disabled=true;
         await navigator.share({files:lot,title:"Mes photos — "+code+(lots.length>1?" ("+de+" à "+a+")":"")});
         t.className="msg ok";
-        b.textContent="✓ Photos "+de+" à "+a+" envoyées · renvoyer";
-        t.textContent=lots.length>1&&k<lots.length-1?"Lot envoyé. Touche maintenant le bouton suivant.":"C'est envoyé. Les photos restent aussi gardées ici.";
+        b.textContent=(lots.length>1?"Photos "+de+" à "+a:"Photos")+" : feuille de partage fermée · renvoyer";
+        t.textContent="La page ne voit pas où les photos sont allées : vérifie qu'elles sont bien arrivées."+(lots.length>1&&k<lots.length-1?" Touche ensuite le bouton suivant.":"")+" Elles restent gardées ici.";
       }catch(e){
         t.className="msg err";
         t.textContent=e&&e.name==="AbortError"?"Partage annulé : les photos restent gardées ici. Touche le bouton pour réessayer.":
@@ -113,6 +115,8 @@ function carte(code,items){
     zone.appendChild(b);
   });
   box.appendChild(zone);box.appendChild(t);
+  const gros=files.filter(f=>f.size>LOT_OCTETS);
+  if(gros.length){t.className="msg err";t.textContent=gros.length+(gros.length>1?" photos sont trop lourdes":" photo est trop lourde")+" pour la feuille de partage : télécharge-la une par une plus bas.";}
   const d=document.createElement("details");
   const su=document.createElement("summary");su.textContent="Télécharger une par une (si l'envoi échoue)";d.appendChild(su);
   const ex=document.createElement("p");ex.className="meta";
