@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Journey Walker · Demos</title>
+<meta name="description" content="Journey Walker, see it working: the AI voice guide and the clickable prototype of the visitor app.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Page de démos pour les investisseurs (19/11/2026). Le monde de la carte AGI : papier crème, encre verte, pas dorés. Thème clair assumé. */
+:root {
+  --papier: #FAF8F3; --carte: #FFFFFF; --trait: #E3DDD1;
+  --encre: #1E3D2F; --vert: #2F6B4F; --or: #B8862A; --gris: #55615A;
+  --display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --texte: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--papier); color: var(--encre); font-family: var(--texte); font-size: 1.0625rem; line-height: 1.55; }
+.page { max-width: 60rem; margin: 0 auto; padding-block: 1.5rem 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 2.5rem; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; color: var(--vert); }
+p { margin: 0; text-wrap: pretty; }
+a { color: var(--vert); }
+a:focus-visible { outline: 2px solid var(--or); outline-offset: 3px; border-radius: 4px; }
+.entete img { height: 56px; width: auto; display: block; }
+.titre { display: flex; flex-direction: column; gap: .6rem; max-width: 40rem; }
+.titre h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.05; font-weight: 700; }
+.titre p { font-size: 1.2rem; color: var(--gris); }
+.demos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 25rem), 1fr)); gap: 1.5rem; }
+.demo { background: var(--carte); border: 1px solid var(--trait); border-radius: 18px; padding: 1.25rem; display: flex; flex-direction: column; gap: .9rem; min-width: 0; }
+.etiquette { font-size: .8rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--or); }
+.demo h2 { font-size: 1.55rem; font-weight: 600; }
+.ecran { width: 100%; max-width: 22rem; margin: 0 auto; border-radius: 14px; border: 1px solid var(--trait); display: block; background: #F1ECE0; }
+video.ecran { aspect-ratio: 1036 / 1312; height: auto; }
+img.ecran { aspect-ratio: 780 / 1476; height: auto; object-fit: cover; }
+.demo ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .3rem; }
+.bouton { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: .6rem 1.2rem; border-radius: 999px;
+  background: var(--vert); color: #fff; font-weight: 600; text-decoration: none; align-self: flex-start; }
+.note { font-size: .92rem; color: var(--gris); }
+.pied { border-top: 1px solid var(--trait); padding-top: 1.25rem; display: flex; flex-direction: column; gap: .5rem; font-size: .95rem; color: var(--gris); }
+.pied b { color: var(--encre); }
+</style>
+
+<div class="page">
+  <header class="entete"><img src="logo-jw.png" alt="Journey Walker" width="107" height="56"></header>
+
+  <div class="titre">
+    <h1>See Journey Walker working</h1>
+    <p>Self-guided walks traced by the people who live in Paris. Two demos, built in November 2026.</p>
+  </div>
+
+  <div class="demos">
+    <section class="demo" aria-labelledby="d1">
+      <span class="etiquette">Demo 1 · 39 seconds · in French</span>
+      <h2 id="d1">The AI voice guide</h2>
+      <video class="ecran" src="guide-vocal-jw.mp4" poster="guide-vocal-jw.jpg" controls playsinline preload="metadata" width="1036" height="1312"></video>
+      <ul>
+        <li>In front of the Saint-Germain-des-Prés church, the guide presents the stop.</li>
+        <li>The walker asks out loud: “Is anyone famous buried in this church?”</li>
+        <li>The guide starts answering by voice 1.1 seconds later, using only the Wikipedia article on the abbey.</li>
+      </ul>
+      <p class="note">Recorded on November 13, 2026. Real-time voice and transcription: Gradium API. Answers: the Wikipedia article on the abbey (CC BY-SA 4.0).</p>
+    </section>
+
+    <section class="demo" aria-labelledby="d2">
+      <span class="etiquette">Demo 2 · clickable prototype · in French</span>
+      <h2 id="d2">The visitor app</h2>
+      <a href="appli/" aria-label="Open the clickable prototype"><img class="ecran" src="appli-apercu.jpg" alt="The Explore screen of the Journey Walker visitor app" width="780" height="1476" loading="lazy"></a>
+      <ul>
+        <li>Our 21 validated Paris routes, with their real stops, traces and photos.</li>
+        <li>A map of Paris: tap a route, then a stop number.</li>
+        <li>A photo tour before you go, a simulated walk, a step counter, and residents’ tips.</li>
+      </ul>
+      <a class="bouton" href="appli/">Open the prototype</a>
+      <p class="note">Version 0.2, November 18, 2026. Nothing you type is sent anywhere; the walk is simulated. Best on a phone or a computer.</p>
+    </section>
+  </div>
+
+  <footer class="pied">
+    <p><b>José Ponsoda</b>, founder · journeywalkerapp@gmail.com · <a href="https://www.linkedin.com/in/jos%C3%A9-ponsoda-1b0b7441/" target="_blank" rel="noopener">LinkedIn</a></p>
+    <p>Map data © OpenStreetMap contributors, tiles by Protomaps. Stop texts from Wikipedia (CC BY-SA 4.0). Photo credits are shown under each photo in the app.</p>
+  </footer>
+</div>
