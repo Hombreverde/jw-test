@@ -475,7 +475,7 @@ select.champ,input.champ{width:100%;min-height:52px;border:1.5px solid var(--tra
           <div class="raccourcis" id="raccourcis"></div>
         </div>
         <div class="sources">
-          <div class="source"><h3>Ce que JW a en plus</h3><ul><li>Des arrêts racontés, pas des drapeaux nus.</li><li>Des tracés marchés par des habitants, validés par JW.</li><li>Les toilettes gratuites sur le trajet, comptées.</li></ul></div>
+          <div class="source"><h3>Ce que JW a en plus</h3><ul><li>Des arrêts racontés, pas des drapeaux nus.</li><li>Des circuits validés par JW, certains tracés par des habitants.</li><li>Les toilettes gratuites sur le trajet, comptées.</li></ul></div>
         </div>
       </div>
     </div>
@@ -642,7 +642,7 @@ const tuyauxHtml = (c, k) => tuyauxDe(c, k).map(tuyauHtml).join('');
 const couverture = c => c.arrets.find(a => a.tuile === c.couverture) || c.arrets.find(a => a.tuile != null);
 /* v0.4 : le sceau du circuit (champ `sceau` posé par fabriquer_page_v04.py) ; l’or seul pour un chemin d’habitant */
 const SCEAUX = {
-  habitant: {cl: 'sceau-hab', img: 'img/sceau-habitant.png', nom: 'Marché par un habitant', sens: 'Le chemin a été tracé par quelqu’un qui vit dans le quartier, puis validé par l’équipe JW.'},
+  habitant: {cl: 'sceau-hab', img: 'img/sceau-habitant.png', nom: 'Tracé par un habitant', sens: 'Le chemin a été tracé par quelqu’un qui vit dans le quartier, puis validé par l’équipe JW.'},
   jw: {cl: 'sceau-jw', img: 'img/sceau-jw.png', nom: 'Validé par JW', sens: 'Le parcours a été marché arrêt par arrêt et approuvé par l’équipe JW.'}};
 const sceauDe = c => SCEAUX[c.sceau] || SCEAUX.jw;
 const sceau = (c, grand) => { const s = sceauDe(c); return `<span class="sceau ${s.cl}${grand ? ' sceau-grand' : ''}"><img class="sceau-img" src="${s.img}" alt="" width="44" height="44">${s.nom}</span>`; };
@@ -683,7 +683,7 @@ function carteListe(c) {
   </article>`;
 }
 const compteTxt = L => { const h = L.filter(c => c.sceau === 'habitant').length;
-  return `<b>${L.length}</b> ${L.length > 1 ? 'circuits validés' : 'circuit validé'} par JW${h ? `, dont <b>${h}</b> ${h > 1 ? 'marchés' : 'marché'} par un habitant` : ''}`; };
+  return `<b>${L.length}</b> ${L.length > 1 ? 'circuits validés' : 'circuit validé'} par JW${h ? `, dont <b>${h}</b> ${h > 1 ? 'tracés' : 'tracé'} par un habitant` : ''}`; };
 const listeTxt = L => L.map(carteListe).join('') || '<div class="vide">Aucun circuit ne correspond. Essaie un autre mot, comme « Seine » ou « église ».</div>';
 function ecranExplorer() {
   const L = filtrer();
@@ -692,7 +692,7 @@ function ecranExplorer() {
     <div class="ent"><img class="logo-c" src="img/logo-jw.png" alt="journey walker" width="84" height="44"><img class="logo-s" src="img/logo-jw-sombre.png" alt="journey walker" width="84" height="44">
       <button class="ville" data-toast="Paris pour commencer. Ottawa, Saint-Malo et Québec viendront ensuite."><i></i>Paris</button></div>
     <h1 class="app-h1">Paris à pied, raconté par ceux qui y vivent</h1>
-    <p class="app-sous">Des circuits marchés par des habitants, validés par JW, avec une histoire à chaque arrêt.</p>
+    <p class="app-sous">Des circuits validés par JW, certains tracés par des habitants, avec une histoire à chaque arrêt.</p>
     <label class="recherche">${ic('explorer')}<input id="q" type="search" placeholder="Un quartier, un lieu, un arrêt…" value="${esc(S.q)}" aria-label="Chercher un circuit"></label>
     <div class="puces">${puce('tous', 'Tous')}${puce('court', "Moins d'une heure")}${puce('rd', 'Rive droite')}${puce('rg', 'Rive gauche')}${puce('theme', 'Thématiques')}</div>
     <div class="compte" id="compte">${compteTxt(L)}</div>
