@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<link rel="icon" href="data:,">
+<title>Banc appareil · Journey Walker</title>
+<style>
+:root {font: 137.5%/1.45 system-ui,sans-serif; color:#20251f; background:#faf9f4}
+* {box-sizing:border-box}
+body {margin:auto; max-width:34rem; padding:1rem; overflow-wrap:anywhere}
+h1,h2 {line-height:1.15} h1 {font-size:1.65rem} h2 {font-size:1.2rem}
+section,details {margin:1rem 0; padding:1rem; background:white; border:1px solid #a3a99d; border-radius:.6rem}
+button {font:inherit; font-weight:650; color:white; background:#205441; padding:.45rem .75rem; border:0; border-radius:.35rem; min-height:66px; width:100%; margin:.25rem 0; cursor:pointer}
+button:disabled {background:#565d59; color:#fff; cursor:default} .second {background:#fff; border:2px solid #205441; color:#153f30} .second:disabled {background:#eceeeb; color:#4a514d; border-color:#9aa19c}
+:focus-visible {outline:4px solid #125baf; outline-offset:2px}
+dl {margin:0} dt {font-weight:bold; margin-top:.55rem} dd {margin:0}
+#verdict {font-size:1.65rem;margin:.2rem 0} summary {cursor:pointer} textarea {font:inherit;width:100%}
+</style>
+</head>
+<body>
+<main>
+<h1>Essayer ce téléphone</h1>
+<p>Fais l’essai dehors. Tu vas vérifier ta position et photographier un objet. Cette page ne transmet rien.</p>
+<noscript>Non compatible. Active JavaScript dans ce navigateur pour lancer les vérifications.</noscript>
+<section><h2>1. Vérifier la position</h2>
+<button id="start">Vérifier ce téléphone</button>
+<p id="gps" role="status">La position sera utilisée une fois. Aucune coordonnée ne sera affichée ni gardée.</p></section>
+<section><h2>2. Essayer la photo</h2>
+<p>Prends une nouvelle photo d’un objet sans personne. Valide-la et reviens ici.</p>
+<button id="take" disabled>Prendre la photo d’essai</button>
+<input type="file" id="camera" accept="image/*" capture="environment" hidden>
+<button id="skip" class="second" disabled>Terminer sans photo</button>
+<p id="photo" role="status">Photo à essayer.</p></section>
+<section aria-live="polite"><h2 id="verdict">Essai à faire</h2><p id="raison">Commence par vérifier ce téléphone.</p>
+<button id="copy" disabled>Copier le résultat</button>
+<p id="message"></p><textarea id="manual" readonly hidden aria-label="Résultat à copier"></textarea></section>
+<details><summary>Détails de l’essai</summary>
+<dl><dt>Système et navigateur probables</dt><dd id="env"></dd><dt>Langues déclarées</dt><dd id="langs"></dd>
+<dt>Autorisations déclarées par le navigateur</dt><dd id="permissions">Lecture en cours.</dd><dt>Stockage de marche (IndexedDB)</dt><dd id="db">À essayer.</dd>
+<dt>Petit stockage (localStorage)</dt><dd id="small">À essayer.</dd><dt>Maintien de l’écran</dt><dd id="wake">À essayer.</dd>
+<dt>Retour de la caméra</dt><dd id="life">À essayer.</dd><dt>Heure du fichier photo</dt><dd id="hour">À essayer.</dd></dl>
+<p>L’heure testée est la date de modification fournie par le navigateur. Un essai court ne mesure ni une heure de GPS ni la remise des photos à l’arrivée.</p>
+</details></main>
+<script>
+'use strict';
+const el = id => document.getElementById(id);
+const put = (id, text) => { el(id).textContent = text; };
+function famille(ua) {
+  const os = /HarmonyOS/i.test(ua) ? 'HarmonyOS' : /iPhone|iPad|iPod/i.test(ua) ? 'iOS / iPadOS' :
+    /Android/i.test(ua) ? 'Android' : /Windows/i.test(ua) ? 'Windows' : /Macintosh/i.test(ua) ? 'Mac ou iPad' :
+    /Linux/i.test(ua) ? 'Linux' : 'Système inconnu';
+  const noms = [
+    [/MicroMessenger/i,'WeChat (intégré)'], [/Instagram/i,'Instagram (intégré)'],
+    [/FBAN|FBAV|FB_IAB|FBIOS/i,'Facebook (intégré)'], [/SamsungBrowser/i,'Samsung Internet'],
+    [/HuaweiBrowser/i,'Navigateur Huawei'], [/Petal/i,'Contexte Petal (à confirmer)'],
+    [/MiuiBrowser/i,'Navigateur Xiaomi'], [/Edg(?:e|A|iOS)?\//i,'Edge'],
+    [/OPR\/|OPiOS\//i,'Opera'], [/FxiOS|Firefox/i,'Firefox'], [/; wv\)|\bwv\b/i,'Vue intégrée Android'],
+    [/CriOS|(?:Headless)?Chrome\//i,'Chrome ou compatible'], [/(?:iPhone|iPad|iPod|Macintosh).*Version\/.*Safari\//i,'Safari']
+  ];
+  const nav = noms.find(([motif]) => motif.test(ua));
+  return os+' · '+(nav ? nav[1] : 'Navigateur inconnu');
+}
+put('env',famille(navigator.userAgent));
+put('langs',(navigator.languages && navigator.languages.length ? Array.from(navigator.languages) : [navigator.language || 'inconnue']).join(', '));
+const statutPermission = {granted:'accordée', denied:'refusée', prompt:'à demander', default:'à demander'};
+async function permissions() {
+  const etats = await Promise.all([['Position','geolocation'],['Caméra Web','camera'],['Notifications','notifications']].map(async ([nom, cle]) => {
+    let valeur;
+    try { valeur = (await navigator.permissions.query({name:cle})).state; } catch (_) {}
+    if (!valeur && cle === 'notifications' && 'Notification' in window) valeur = Notification.permission;
+    return nom+' — '+(statutPermission[valeur] || 'inconnue');
+  }));
+  put('permissions',etats.join(' · ')+'. La caméra Web et le sélecteur de photos ont des droits distincts.');
+}
+permissions();
+const clePhoto = 'jw_banc_camera_v1';
+const etat = {position:'à essayer', base:false, petit:false, photo:'à essayer', enCours:false, commence:false};
+let tentative = false, temoinEcrit = false;
+function lireTemoin() {
+  try {return sessionStorage.getItem(clePhoto);} catch (_) {return null;}
+}
+function enleverTemoin() {
+  try {sessionStorage.removeItem(clePhoto);} catch (_) {}
+}
+if (lireTemoin() === 'attente') {
+  etat.photo = 'page recréée';
+  put('life','Une nouvelle page a retrouvé la tentative ouverte. La page précédente a été remplacée.');
+  put('photo','La page a repris pendant une tentative photo. Vérifie la position pour obtenir le bilan.');
+  put('hour','Aucun fichier confirmé.');
+} else if (window.performance && performance.getEntriesByType &&
+           performance.getEntriesByType('navigation').some(entree => entree.type === 'reload')) {
+  put('life','Page rechargée sans témoin de caméra. Si tu revenais de la caméra, refais cet essai.');
+}
+function verdict() {
+  const fini = etat.commence && !etat.enCours && (etat.position !== 'reçue' || !etat.base || !etat.petit || etat.photo !== 'à essayer');
+  let titre = 'Essai en cours', raison = 'Termine les vérifications.';
+  if (fini) {
+    if (etat.position !== 'reçue') {
+      titre = 'Non compatible';
+      raison = 'Pour cet essai, la position utilisable manque ('+etat.position+').';
+    } else if (!etat.base || !etat.petit) {
+      titre = 'Peut suivre les circuits';
+      raison = 'La position arrive, mais la sauvegarde locale nécessaire à la trace a échoué.';
+    } else if (etat.photo === 'reçue avec heure et page intacte') {
+      titre = 'Prêt à tracer';
+      raison = 'La position, la sauvegarde et le retour photo avec une heure récente ont réussi sur cet essai.';
+    } else {
+      titre = 'Peut suivre les circuits';
+      raison = 'La position arrive, mais le contrôle photo reste incomplet ('+etat.photo+').';
+    }
+  } else if (!etat.enCours && etat.position === 'reçue') raison = 'Prends la photo d’essai ou termine sans photo.';
+  put('verdict',titre); put('raison',raison); el('copy').disabled = !fini;
+  el('manual').hidden = true; put('message','');
+}
+function position() {
+  if (!window.isSecureContext) return Promise.resolve('contexte non sécurisé');
+  if (!navigator.geolocation) return Promise.resolve('géolocalisation absente');
+  return new Promise(resolve => {
+    // La marge couvre aussi le cas où le dialogue reste ouvert. Aucun point n’est conservé.
+    const limite = setTimeout(() => resolve('sans réponse'), 45000);
+    function finir(resultat) {clearTimeout(limite); resolve(resultat);}
+    navigator.geolocation.getCurrentPosition(point => {
+      const precision = point.coords.accuracy;
+      finir(Number.isFinite(precision) && precision >= 0 && precision <= 35 ? 'reçue' : 'trop imprécise, réessayer dehors');
+    }, erreur => finir(({1:'refusée',2:'indisponible',3:'délai dépassé'})[erreur.code] || 'échec'),
+    {enableHighAccuracy:true, maximumAge:0, timeout:20000});
+  }).catch(() => 'indisponible');
+}
+function petitStockage() {
+  const cle = 'jw_banc_essai_simple';
+  try {
+    localStorage.setItem(cle,'essai');
+    const ok = localStorage.getItem(cle) === 'essai';
+    localStorage.removeItem(cle); return ok;
+  } catch (_) {return false;}
+}
+function stockage() {
+  return new Promise(resolve => {
+    let db, termine = false, avant = false;
+    const limite = setTimeout(() => finir(false),8000);
+    function finir(ok) {
+      if (db) db.close();
+      if (termine) return;
+      termine = true; clearTimeout(limite); resolve({ok,avant});
+    }
+    try {
+      const req = indexedDB.open('jw_banc_appareil_v1',1);
+      req.onupgradeneeded = () => req.result.createObjectStore('essai');
+      req.onerror = req.onblocked = () => finir(false);
+      req.onsuccess = () => {
+        db = req.result;
+        if (termine) {db.close(); return;}
+        const tx = db.transaction('essai','readwrite'), table = tx.objectStore('essai');
+        const old = table.get('temoin');
+        old.onsuccess = () => {avant = old.result === 'oui'; table.put('oui','temoin');};
+        tx.onabort = tx.onerror = () => finir(false);
+        tx.oncomplete = () => {
+          if (termine) return;
+          const lecture = db.transaction('essai'), r = lecture.objectStore('essai').get('temoin');
+          lecture.oncomplete = () => finir(r.result === 'oui');
+          lecture.onabort = lecture.onerror = () => finir(false);
+        };
+      };
+    } catch (_) {finir(false);}
+  });
+}
+async function maintien() {
+  try {
+    if (!navigator.wakeLock) return 'Fonction absente. Garde la page visible.';
+    const verrou = await navigator.wakeLock.request('screen');
+    await verrou.release();
+    return 'Accordé puis relâché après vérification.';
+  } catch (_) {return 'Indisponible pour cet essai. Garde la page visible.';}
+}
+el('start').onclick = async () => {
+  etat.commence = true; etat.enCours = true; el('start').disabled = true;
+  el('take').disabled = el('skip').disabled = true; verdict();
+  put('gps','Recherche d’une position…'); put('db','Écriture et relecture du témoin…');
+  etat.petit = petitStockage(); put('small',etat.petit ? 'Écriture et relecture réussies.' : 'Échec.');
+  maintien().then(message => put('wake', message));
+  const [gps, db] = await Promise.all([position(),stockage()]);
+  etat.position = gps; etat.base = db.ok; etat.enCours = false;
+  put('gps','Position — '+gps+'.'); put('db',db.ok ?
+    'Écriture et relecture réussies. Témoin antérieur '+(db.avant ? 'retrouvé.' : 'absent.') : 'Écriture ou relecture impossible.');
+  el('start').disabled = false; el('start').textContent = 'Vérifier à nouveau';
+  el('take').disabled = el('skip').disabled = false; permissions(); verdict();
+};
+el('take').onclick = () => {
+  tentative = true; temoinEcrit = false; etat.photo = 'à essayer';
+  try {sessionStorage.setItem(clePhoto,'attente'); temoinEcrit = lireTemoin() === 'attente';} catch (_) {}
+  put('photo','En attente du retour.'); put('hour','À vérifier.');
+  put('life',temoinEcrit ? 'Témoin posé avant l’ouverture.' : 'Stockage de l’onglet indisponible.');
+  el('start').disabled = el('take').disabled = true;
+  el('skip').disabled = false;
+  el('camera').value = ''; verdict(); el('camera').click();
+};
+function retour() {
+  if (!tentative || document.hidden) return;
+  put('life',temoinEcrit && lireTemoin() === 'attente' ? 'Même page en mémoire et témoin retrouvé.' :
+    'Témoin absent ou illisible. Retour non confirmé.');
+  permissions();
+}
+window.addEventListener('focus',retour);
+document.addEventListener('visibilitychange',retour);
+function finirPhoto(resultat) {
+  tentative = false; enleverTemoin(); etat.photo = resultat;
+  el('start').disabled = el('take').disabled = false; el('skip').disabled = true;
+  put('photo','Photo — '+resultat+'.');
+  permissions(); verdict();
+}
+el('camera').onchange = () => {
+  if (!tentative) {el('camera').value = ''; return;}
+  const f = el('camera').files[0];
+  const image = f && f.size > 0 && /^image\//i.test(f.type);
+  const intact = temoinEcrit && lireTemoin() === 'attente';
+  const recent = image && Number.isFinite(f.lastModified) && f.lastModified > 0 && Math.abs(Date.now()-f.lastModified) < 600000;
+  retour();
+  put('hour',recent ? 'Date de modification récente reçue (moins de 10 min).' : 'Date récente non confirmée.');
+  el('camera').value = '';
+  finirPhoto(!image ? 'image non confirmée' : !intact ? 'survie non confirmée' : !recent ? 'heure non confirmée' : 'reçue avec heure et page intacte');
+};
+el('camera').addEventListener('cancel',() => {if (tentative) {retour(); put('hour','Aucun fichier.'); finirPhoto('annulée');}});
+el('skip').onclick = () => {
+  if (tentative) retour();
+  if (etat.photo === 'page recréée') {enleverTemoin(); verdict(); return;}
+  put('hour','Aucun fichier vérifié.'); finirPhoto('essai sans photo');
+};
+el('copy').onclick = async () => {
+  const resultat = el('verdict').textContent+' — '+el('env').textContent+'. Position : '+etat.position+
+    '. Stockage : '+(etat.base && etat.petit ? 'réussi' : 'échec')+'. Photo : '+etat.photo+'. Écran : '+el('wake').textContent;
+  try {await navigator.clipboard.writeText(resultat); put('message','Résultat copié.');}
+  catch (_) {el('manual').hidden = false; el('manual').value = resultat; el('manual').focus(); el('manual').select(); put('message','Utilise la commande Copier du navigateur.');}
+};
+</script></body></html>
