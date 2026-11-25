@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><style>body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
-<title>Six marches avant le départ</title>
+<title>Cinq marches avant le départ</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,8 +63,8 @@ button:focus-visible{outline:3px solid var(--or);outline-offset:2px}
 
 <div class="page">
   <header>
-    <h1>Six marches avant le départ</h1>
-    <p class="chapeau">Les 6 circuits qui restent à marcher en priorité avant le départ, dans l'ordre d'importance. Le circuit 13, Trocadéro et musées de Passy, est marché depuis le 24/11.</p>
+    <h1>Cinq marches avant le départ</h1>
+    <p class="chapeau">Les 5 circuits qui restent à marcher en priorité avant le départ, dans l'ordre d'importance. Le circuit 13, Trocadéro et musées de Passy, et le 6.2, le 5e côté jardin, sont marchés et homologués.</p>
   </header>
 
   <section class="rappels" aria-label="À chaque marche">
@@ -78,25 +78,22 @@ button:focus-visible{outline:3px solid var(--or);outline-offset:2px}
     </ul>
   </section>
 
-  <p class="compte" id="compte" aria-live="polite">0 marche faite sur 6</p>
+  <p class="compte" id="compte" aria-live="polite">0 marche faite sur 5</p>
 
   <main id="cartes" style="display:grid;gap:18px"></main>
 
-  <p class="pied">Mémo du 23/11/2026, mis à jour le 25/11 (le 13 est marché) · longueurs et arrêts lus dans le Plan de Paris (v94) et les fichiers du Cockpit · « Mes circuits » : <span class="lien">https://hombreverde.github.io/jw-test/mes-circuits.html</span></p>
+  <p class="pied">Mémo du 23/11/2026, mis à jour le 25/11 (le 13 et le 6.2 sont marchés et homologués) · longueurs et arrêts lus dans le Plan de Paris (v94) et les fichiers du Cockpit · « Mes circuits » : <span class="lien">https://hombreverde.github.io/jw-test/mes-circuits.html</span></p>
 </div>
 
 <script>
 const COCKPIT = 'https://hombreverde.github.io/jw-test/cockpit-0411.html?circuit=';
 /* le premier arrêt de chaque circuit (fichiers du Cockpit, 23/11) : pour « Y aller » */
-const DEPARTS = {'paris-la-nuit': [48.86285, 2.33582], 'quartier-latin-b': [48.852209, 2.347579], 'gourmand-sentier-martyrs': [48.863495, 2.34867],
+const DEPARTS = {'paris-la-nuit': [48.86285, 2.33582], 'gourmand-sentier-martyrs': [48.863495, 2.34867],
   'architecture-deux-mille-ans': [48.851234, 2.343434], 'la-villette': [48.88346, 2.36955], 'montsouris': [48.836092, 2.316934]};
 const CIRCUITS = [
   {id: 'paris-la-nuit', no: 'T6', nom: 'Paris la nuit', trajet: 'Métro Palais-Royal – Musée du Louvre → métro Trocadéro', km: '5,5 km', arrets: '10 arrêts', duree: '≈ 1 h 20',
    quand: ['soir', 'À la tombée du jour'], pourquoi: 'Un thème à nous, de saison : la pyramide éclairée, la Concorde, le pont Alexandre-III et ses candélabres, la tour Eiffel en finale.',
    regarder: 'L’heure du scintillement de la tour · les Tuileries encore ouvertes ou non · de l’Alma à la tour, quai haut ou bord de l’eau · la montée au Trocadéro. Métros en route : Concorde, Invalides, Alma-Marceau.'},
-  {id: 'quartier-latin-b', no: '6.2', nom: 'Le 5e côté jardin', trajet: 'Square René-Viviani (métro Maubert-Mutualité à 5 min) → métro Place Monge', km: '3,4 km', arrets: '9 arrêts', duree: '≈ 50 min',
-   quand: ['jour', 'De jour'], pourquoi: 'Le plus rentable : la moitié est déjà marchée. Il complète le Quartier latin, la suite du 6.1.',
-   regarder: 'La fin, pas encore marchée : Grande Galerie → Grande Mosquée → arènes de Lutèce → place Monge · l’entrée de la Ménagerie (payante).'},
   {id: 'gourmand-sentier-martyrs', no: 'T5', nom: 'Le circuit gourmand', trajet: 'Métro Étienne Marcel → métro Pigalle', km: '3,7 km', arrets: '9 arrêts', duree: '≈ 1 h',
    quand: ['semaine', 'En semaine, vers midi'], pourquoi: 'Notre série thématique. Les commerces y sont les arrêts : la preuve du modèle des sponsors.',
    regarder: 'Les boutiques ouvertes ce jour-là · le jambon-beurre se prend à midi.'},
