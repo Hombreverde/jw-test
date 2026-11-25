@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><style>body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
-<title>Sept marches avant le départ</title>
+<title>Six marches avant le départ</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,8 +63,8 @@ button:focus-visible{outline:3px solid var(--or);outline-offset:2px}
 
 <div class="page">
   <header>
-    <h1>Sept marches avant le départ</h1>
-    <p class="chapeau">Les 7 circuits à marcher en priorité avant le départ, dans l'ordre d'importance.</p>
+    <h1>Six marches avant le départ</h1>
+    <p class="chapeau">Les 6 circuits qui restent à marcher en priorité avant le départ, dans l'ordre d'importance. Le circuit 13, Trocadéro et musées de Passy, est marché depuis le 24/11.</p>
   </header>
 
   <section class="rappels" aria-label="À chaque marche">
@@ -78,18 +78,18 @@ button:focus-visible{outline:3px solid var(--or);outline-offset:2px}
     </ul>
   </section>
 
-  <p class="compte" id="compte" aria-live="polite">0 marche faite sur 7</p>
+  <p class="compte" id="compte" aria-live="polite">0 marche faite sur 6</p>
 
   <main id="cartes" style="display:grid;gap:18px"></main>
 
-  <p class="pied">Mémo du 23/11/2026 · longueurs et arrêts lus dans le Plan de Paris (v94) et les fichiers du Cockpit · « Mes circuits » : <span class="lien">https://hombreverde.github.io/jw-test/mes-circuits.html</span></p>
+  <p class="pied">Mémo du 23/11/2026, mis à jour le 25/11 (le 13 est marché) · longueurs et arrêts lus dans le Plan de Paris (v94) et les fichiers du Cockpit · « Mes circuits » : <span class="lien">https://hombreverde.github.io/jw-test/mes-circuits.html</span></p>
 </div>
 
 <script>
 const COCKPIT = 'https://hombreverde.github.io/jw-test/cockpit-0411.html?circuit=';
 /* le premier arrêt de chaque circuit (fichiers du Cockpit, 23/11) : pour « Y aller » */
 const DEPARTS = {'paris-la-nuit': [48.86285, 2.33582], 'quartier-latin-b': [48.852209, 2.347579], 'gourmand-sentier-martyrs': [48.863495, 2.34867],
-  'architecture-deux-mille-ans': [48.851234, 2.343434], 'la-villette': [48.88346, 2.36955], 'trocadero-passy': [48.8646, 2.30155], 'montsouris': [48.836092, 2.316934]};
+  'architecture-deux-mille-ans': [48.851234, 2.343434], 'la-villette': [48.88346, 2.36955], 'montsouris': [48.836092, 2.316934]};
 const CIRCUITS = [
   {id: 'paris-la-nuit', no: 'T6', nom: 'Paris la nuit', trajet: 'Métro Palais-Royal – Musée du Louvre → métro Trocadéro', km: '5,5 km', arrets: '10 arrêts', duree: '≈ 1 h 20',
    quand: ['soir', 'À la tombée du jour'], pourquoi: 'Un thème à nous, de saison : la pyramide éclairée, la Concorde, le pont Alexandre-III et ses candélabres, la tour Eiffel en finale.',
@@ -106,9 +106,6 @@ const CIRCUITS = [
   {id: 'la-villette', no: '22', nom: 'La Villette', trajet: 'Rotonde de la Villette (métro Jaurès ou Stalingrad) → métro Porte de Pantin', km: '4,8 km', arrets: '9 arrêts', duree: '≈ 1 h 10',
    quand: ['jour', 'De jour'], pourquoi: 'Le 19e n’a encore aucun circuit. C’est la suite du canal Saint-Martin, déjà homologué, et c’est plat.',
    regarder: 'La traversée du Centquatre.'},
-  {id: 'trocadero-passy', no: '13', nom: 'Trocadéro et musées de Passy', trajet: 'Place de l’Alma (métro Alma-Marceau) → métro Passy', km: '4,1 km', arrets: '8 arrêts', duree: '≈ 1 h',
-   quand: ['jour', 'De jour'], pourquoi: 'Le 16e n’a encore aucun circuit. Il part de l’Alma, sur le chemin du T6.',
-   regarder: 'Les musées ouverts ce jour-là (on passe devant, pas besoin d’entrer).'},
   {id: 'montsouris', no: '14', nom: 'Le 14e, villages et Montsouris', trajet: 'Église Notre-Dame-du-Travail (métro Pernety) → Cité universitaire (RER B)', km: '5,0 km', arrets: '10 arrêts', duree: '≈ 1 h 15',
    quand: ['jour', 'De jour, le parc ferme le soir'], pourquoi: 'Le 14e n’a encore aucun circuit. Un parc et des villages, de quoi plaire à nos marcheurs.',
    regarder: 'L’heure de fermeture du parc Montsouris · les Catacombes sont sur réservation (on passe devant).'}
@@ -142,7 +139,7 @@ function rendre() {
       <p class="lien" id="lien-${c.id}">${url}</p>
     </article>`;
   }).join('');
-  document.getElementById('compte').textContent = `${faits.size} marche${faits.size > 1 ? 's' : ''} faite${faits.size > 1 ? 's' : ''} sur 7`;
+  document.getElementById('compte').textContent = `${faits.size} marche${faits.size > 1 ? 's' : ''} faite${faits.size > 1 ? 's' : ''} sur ${CIRCUITS.length}`;
 }
 
 document.getElementById('cartes').addEventListener('click', ev => {
